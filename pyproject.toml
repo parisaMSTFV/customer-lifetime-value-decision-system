@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clv-decision-system"
+version = "1.0.0"
+description = "A reproducible customer lifetime value decision system for non-contractual ecommerce"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Parisa Mostafavi"}]
+dependencies = [
+  "matplotlib==3.10.8",
+  "numpy==2.3.5",
+  "pandas==2.2.3",
+  "scipy==1.17.0",
+  "scikit-learn==1.8.0",
+]
+
+[project.optional-dependencies]
+dev = ["ruff==0.16.2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
