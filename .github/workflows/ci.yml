@@ -31,5 +31,5 @@ jobs:
       - name: Reproduce committed outputs
         run: |
           python scripts/run_pipeline.py
-          git diff --exit-code -- data artifacts reports
-
+          git diff --exit-code -- data
+          python scripts/check_reproducibility.py

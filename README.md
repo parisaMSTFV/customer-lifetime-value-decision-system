@@ -101,7 +101,11 @@ python scripts/run_pipeline.py
 python -m unittest discover -s tests -v
 ```
 
-The pipeline deterministically regenerates data, scores, summaries, figures, and `reports/metrics.json`. The committed data fingerprint is `b24f3c2d959f40ea`.
+The pipeline regenerates data, scores, summaries, figures, and `reports/metrics.json`.
+CI requires byte-identical synthetic data and compares machine-readable model outputs
+with a strict numerical tolerance for cross-platform floating-point differences. PNG
+files may differ at the binary level across rendering environments. The committed data
+fingerprint is `b24f3c2d959f40ea`.
 
 ## Repository map
 
@@ -132,4 +136,3 @@ The pipeline deterministically regenerates data, scores, summaries, figures, and
 - [Decision Policy](docs/DECISION_POLICY.md)
 - [Data Dictionary](docs/DATA_DICTIONARY.md)
 - [Executed Decision Report](reports/executive_summary.md)
-
