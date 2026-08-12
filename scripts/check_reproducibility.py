@@ -16,6 +16,8 @@ CSV_PATHS = (
     Path("artifacts/feature_importance.csv"),
     Path("artifacts/holdout_customer_scores.csv"),
     Path("artifacts/service_tier_summary.csv"),
+    Path("reports/interval_coverage_by_decile.csv"),
+    Path("reports/interval_coverage_by_tier.csv"),
 )
 JSON_PATHS = (
     Path("artifacts/model_metadata.json"),

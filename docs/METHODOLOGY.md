@@ -24,8 +24,9 @@ Features use a 365-day lookback and labels use the subsequent 180 days.
 
 | Role | Snapshot date | Rows | Use |
 |---|---:|---:|---|
-| Training | 2023-06-30 and 2023-12-31 | 2,800 | Fit candidate models |
-| Validation | 2024-06-30 | 1,400 | Select hyperparameters |
+| Training | 2023-06-30 | 1,400 | Fit candidate models |
+| Model selection | 2023-12-31 | 1,400 | Select hyperparameters |
+| Interval calibration | 2024-06-30 | 1,400 | Fit the split-conformal correction |
 | Test | 2024-12-31 | 1,400 | Final untouched evaluation |
 
 The same customers may appear at multiple dates because this represents a recurring scoring process. Separation is temporal: no order after a snapshot can enter its features, and the test date is not used for model selection.
@@ -52,7 +53,15 @@ The point estimate is a two-part hurdle model:
 2. Histogram gradient boosting regressor for log margin among active outcomes.
 3. Expected value equals activity probability multiplied by conditional margin.
 
-Separate 10th- and 90th-quantile gradient boosting regressors provide the nominal 80% interval. Three small model configurations are compared on validation WAPE. The selected configuration is then refit on training plus validation before the single holdout evaluation.
+Separate 10th- and 90th-quantile gradient boosting regressors provide the raw nominal 80% interval. Three small model configurations are compared on model-selection WAPE. The selected configuration is refit on training plus model-selection data. A later, dedicated calibration snapshot then fits a conservative split-conformal correction before the final holdout is opened.
+
+For calibration row \(i\), the conformity score is:
+
+\[
+s_i = \max(\hat{q}_{0.10,i} - y_i, y_i - \hat{q}_{0.90,i})
+\]
+
+The finite-sample 80th percentile of these scores is added to the upper bound and subtracted from the lower bound, with a non-negative correction so calibration can widen but not shrink the raw interval. The correction is 3.48 synthetic currency units in the committed run.
 
 ## Baseline
 
@@ -70,11 +79,11 @@ It is intentionally simple enough for a stakeholder to reproduce and challenge.
 - **Spearman correlation:** quality of customer ranking.
 - **Top-fraction value capture:** realized value held by the top 10% or 20% of scores.
 - **Average precision and Brier score:** activity ranking and probability quality.
-- **Interval coverage:** share of actual outcomes within the nominal 80% interval.
+- **Raw and calibrated interval coverage:** share of actual outcomes within each interval.
+- **Conditional interval diagnostics:** coverage and width by predicted-value decile and service tier.
 
-The holdout interval covered 74% of outcomes, so uncertainty is directionally useful but not yet production-calibrated.
+The raw holdout interval covered 71.4% of outcomes; the calibrated interval covered 81.4%. Conditional coverage remains uneven—the Protect tier and highest predicted-value decile each covered 74.3%—so the marginal result is not presented as a subgroup guarantee.
 
 ## Reproducibility
 
-The generator seed, feature windows, split dates, model candidates, and policy settings are versioned. CI regenerates the committed outputs on Python 3.11 and 3.12 and fails if tracked data, artifacts, or reports change. The expected fingerprint is `b24f3c2d959f40ea`.
-
+The generator seed, feature windows, four-way split dates, interval target, model candidates, and policy settings are versioned. CI regenerates the committed outputs on Python 3.11 and 3.12 and fails if tracked data, artifacts, or reports change. The expected fingerprint is `b24f3c2d959f40ea`.

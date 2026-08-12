@@ -13,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from clv_decision_system.evaluation import (  # noqa: E402, I001
+    interval_diagnostics,
     regression_metrics,
     top_fraction_capture,
 )
@@ -22,6 +23,7 @@ from clv_decision_system.modeling import (  # noqa: E402, I001
     NUMERIC_FEATURES,
     TARGET_COLUMN,
     baseline_prediction,
+    calibrate_intervals,
     fit_final_model,
     predict,
     wape,
@@ -57,8 +59,25 @@ class ModelingTests(unittest.TestCase):
     def test_predictions_are_non_negative_and_intervals_are_ordered(self) -> None:
         result = predict(self.bundle, self.frame.head(20))
         self.assertTrue((result["predicted_clv_180d"] >= 0).all())
+        self.assertTrue((result["clv_lower_80_raw"] <= result["predicted_clv_180d"]).all())
+        self.assertTrue((result["predicted_clv_180d"] <= result["clv_upper_80_raw"]).all())
         self.assertTrue((result["clv_lower_80"] <= result["predicted_clv_180d"]).all())
         self.assertTrue((result["predicted_clv_180d"] <= result["clv_upper_80"]).all())
+
+    def test_interval_calibration_reaches_target_on_calibration_snapshot(self) -> None:
+        calibration_frame = self.frame.iloc[:60].copy()
+        raw = predict(self.bundle, calibration_frame)
+        calibration_frame[TARGET_COLUMN] = raw["clv_upper_80_raw"].to_numpy() + np.linspace(
+            0.0, 25.0, len(calibration_frame)
+        )
+        calibration = calibrate_intervals(self.bundle, calibration_frame, target_coverage=0.80)
+        calibrated = predict(self.bundle, calibration_frame, calibration)
+        covered = (calibration_frame[TARGET_COLUMN] >= calibrated["clv_lower_80"]) & (
+            calibration_frame[TARGET_COLUMN] <= calibrated["clv_upper_80"]
+        )
+        self.assertGreater(calibration.correction, 0.0)
+        self.assertGreaterEqual(covered.mean(), 0.80)
+        self.assertTrue((calibrated["clv_upper_80"] >= calibrated["clv_upper_80_raw"]).all())
 
     def test_baseline_penalizes_long_recency(self) -> None:
         frame = pd.DataFrame(
@@ -87,6 +106,23 @@ class ModelingTests(unittest.TestCase):
         actual = np.array([1.0, 2.0, 7.0, 10.0])
         score = np.array([0.0, 1.0, 2.0, 3.0])
         self.assertEqual(top_fraction_capture(actual, score, 0.25), 0.5)
+
+    def test_interval_diagnostics_reports_raw_and_calibrated_coverage(self) -> None:
+        scored = pd.DataFrame(
+            {
+                "customer_id": ["C1", "C2"],
+                "service_tier": ["protect", "protect"],
+                "future_discounted_margin_180d": [10.0, 30.0],
+                "clv_lower_80_raw": [8.0, 8.0],
+                "clv_upper_80_raw": [12.0, 12.0],
+                "clv_lower_80": [5.0, 5.0],
+                "clv_upper_80": [35.0, 35.0],
+            }
+        )
+        result = interval_diagnostics(scored, "service_tier").iloc[0]
+        self.assertEqual(result["raw_coverage"], 0.5)
+        self.assertEqual(result["calibrated_coverage"], 1.0)
+        self.assertGreater(result["calibrated_mean_width"], result["raw_mean_width"])
 
 
 if __name__ == "__main__":

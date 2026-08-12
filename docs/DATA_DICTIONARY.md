@@ -67,8 +67,12 @@ All records are synthetic. Customer IDs and order IDs are generated sequence key
 |---|---|
 | `predicted_clv_180d` | Expected 180-day discounted contribution margin |
 | `active_probability_180d` | Estimated probability of activity in the horizon |
-| `clv_lower_80`, `clv_upper_80` | Nominal 80% model interval |
+| `clv_lower_80_raw`, `clv_upper_80_raw` | Uncalibrated 10th/90th quantile interval |
+| `clv_lower_80`, `clv_upper_80` | Split-conformal interval used by the active policy |
 | `service_tier` | Relative capacity tier |
 | `high_uncertainty` | Wide-interval review flag |
+| `high_uncertainty_raw` | Audit copy of the flag under the raw quantile interval |
 | `investment_ceiling` | Policy cap based on lower-bound value and tier configuration |
+| `investment_ceiling_raw` | Audit copy of the ceiling under the raw quantile interval |
 | `baseline_clv_180d` | Fixed recency-adjusted trailing-margin estimate |
+| `predicted_value_decile` | Holdout diagnostic group; 1 is the lowest predicted value |

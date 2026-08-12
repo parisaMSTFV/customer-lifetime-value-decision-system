@@ -18,25 +18,26 @@ Customer teams often have limited service capacity and intervention budgets. The
 This project separates three layers that are easy to conflate:
 
 1. **Prediction:** estimate future discounted contribution margin.
-2. **Uncertainty:** show an 80% model interval and flag unstable estimates.
+2. **Uncertainty:** calibrate an 80% interval on a dedicated future snapshot and flag unstable estimates.
 3. **Policy:** assign relative service tiers and conservative spending ceilings from explicit configuration.
 
 The policy does not claim that a treatment will cause the predicted value. Treatment uplift requires experimental or causal evidence.
 
 ## Executed holdout results
 
-The final snapshot (`2024-12-31`) is untouched during model and hyperparameter selection.
+The final snapshot (`2024-12-31`) is untouched during model selection, interval calibration, and policy design.
 
 | Metric | CLV model | RFM value baseline | Interpretation |
 |---|---:|---:|---|
-| WAPE | **0.415** | 0.592 | 29.9% relative error reduction |
-| MAE | **32.03** | 45.67 | Lower absolute error in synthetic currency units |
-| Spearman rank correlation | **0.813** | 0.736 | Better ordering for prioritization |
-| Top 10% realized value capture | **24.4%** | 22.4% | Value concentrated within fixed capacity |
-| Top 20% realized value capture | **43.4%** | 40.2% | Ranking advantage persists at wider coverage |
-| Nominal 80% interval coverage | 74.0% | — | Useful but under-covered; recalibration is required before production use |
+| WAPE | **0.421** | 0.592 | 28.8% relative error reduction |
+| MAE | **32.54** | 45.67 | Lower absolute error in synthetic currency units |
+| Spearman rank correlation | **0.808** | 0.736 | Better ordering for prioritization |
+| Top 10% realized value capture | **24.2%** | 22.4% | Value concentrated within fixed capacity |
+| Top 20% realized value capture | **43.3%** | 40.2% | Ranking advantage persists at wider coverage |
+| Raw nominal 80% interval coverage | 71.4% | — | Uncalibrated quantile interval under-covers |
+| Split-conformal 80% interval coverage | **81.4%** | — | Calibrated without using the final holdout |
 
-The **Protect** tier contains 10% of holdout customers and 24.4% of realized holdout value.
+The **Protect** tier contains 10% of holdout customers and 24.2% of realized holdout value.
 
 ![Predicted and realized value by score decile](reports/figures/value_by_decile.png)
 
@@ -48,17 +49,38 @@ The **Protect** tier contains 10% of holdout customers and 24.4% of realized hol
 flowchart LR
     A["Synthetic customers and orders"] --> B["SQL as-of snapshots"]
     B --> C["Temporal model selection"]
-    C --> D["Untouched holdout evaluation"]
-    D --> E["CRM tiers and guardrails"]
+    C --> D["Interval calibration"]
+    D --> E["Untouched holdout evaluation"]
+    E --> F["CRM tiers and guardrails"]
 ```
 
 - The generator creates lifecycle, seasonality, return, discount, and margin behavior with a fixed seed.
 - Executable SQL builds every feature using orders available on or before the snapshot date.
 - A two-part model estimates the probability of future activity and margin conditional on activity.
-- Quantile models provide lower and upper bounds for the 180-day value estimate.
+- Quantile models provide raw lower and upper bounds for the 180-day value estimate.
+- A separate 2024-06-30 snapshot fits one split-conformal correction before the final holdout is opened.
 - A fixed baseline uses trailing contribution margin, recency, and recent momentum.
 
 See [Methodology](docs/METHODOLOGY.md) for the full design and [Model Card](docs/MODEL_CARD.md) for intended use and limitations.
+
+## Interval calibration and decision impact
+
+The raw 80% quantile interval covered 71.7% of the dedicated calibration snapshot. A
+finite-sample split-conformal correction of 3.48 synthetic currency units increased
+calibration-snapshot coverage to 80.1%. On the untouched final snapshot, coverage moved
+from 71.4% to 81.4%, while mean interval width increased from 98.4 to 104.7.
+
+Calibration also changed the downstream guardrails: the high-uncertainty flag rate moved
+from 67.3% to 70.1%, and the aggregate investment ceiling decreased from 4,220.8 to
+3,905.9 synthetic currency units. This is the intended behavior of a conservative lower
+bound—not a claim that the policy is economically optimal.
+
+![Raw and calibrated interval coverage](reports/figures/interval_coverage.png)
+
+Marginal coverage does not imply equal conditional coverage. The Protect tier reached
+74.3% and the highest predicted-value decile reached 74.3%, both below the 80% target.
+The committed [decile](reports/interval_coverage_by_decile.csv) and
+[tier](reports/interval_coverage_by_tier.csv) diagnostics keep that remaining limitation visible.
 
 ## Decision output
 
@@ -66,7 +88,8 @@ The scored customer artifact contains:
 
 - `predicted_clv_180d`: expected discounted contribution margin;
 - `active_probability_180d`: probability of any purchase in the horizon;
-- `clv_lower_80` and `clv_upper_80`: model uncertainty interval;
+- `clv_lower_80_raw` and `clv_upper_80_raw`: uncalibrated quantile interval;
+- `clv_lower_80` and `clv_upper_80`: split-conformal interval used by the policy;
 - `service_tier`: Protect, Grow, Nurture, or Low Touch;
 - `investment_ceiling`: configurable guardrail based on the lower value bound;
 - `high_uncertainty`: review flag for wide intervals.
@@ -113,10 +136,10 @@ fingerprint is `b24f3c2d959f40ea`.
 |---|---|
 | `src/clv_decision_system/` | Synthetic data, features, models, evaluation, policy, and reporting |
 | `sql/` | Executed leakage-safe feature and label queries |
-| `configs/pipeline.json` | Time windows, random seed, tier capacity, and spending guardrails |
+| `configs/pipeline.json` | Split dates, interval target, random seed, tier capacity, and spending guardrails |
 | `data/` | Generated synthetic inputs and temporal snapshots |
 | `artifacts/` | Holdout scores, tier summary, feature importance, and model metadata |
-| `reports/` | Machine-readable metrics, business summary, and generated figures |
+| `reports/` | Machine-readable metrics, conditional interval diagnostics, business summary, and figures |
 | `tests/` | Data, temporal-boundary, model, metric, and policy tests |
 | `.github/workflows/ci.yml` | Python 3.11/3.12 quality and reproducibility checks |
 
@@ -125,7 +148,8 @@ fingerprint is `b24f3c2d959f40ea`.
 - “Lifetime value” is operationalized as a 180-day horizon, not an unlimited lifetime.
 - Synthetic performance cannot establish production accuracy or business impact.
 - Customers are re-observed across snapshots, matching a recurring scoring setup; evaluation is out-of-time rather than customer-disjoint.
-- The 80% interval covered 74% of the holdout and needs recalibration under new data.
+- Split-conformal calibration improves marginal coverage but does not guarantee 80% coverage within every value decile or service tier.
+- Calibration validity depends on temporal exchangeability and must be monitored after distribution shift.
 - The service policy is a decision rule, not a causal treatment model.
 - Contribution margin definitions and cost assumptions must be rebuilt for each business context.
 
