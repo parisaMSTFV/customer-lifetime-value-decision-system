@@ -8,7 +8,7 @@
 | Unit of prediction | Synthetic customer at a scoring snapshot |
 | Target | Discounted contribution margin over the next 180 days |
 | Data | Fully synthetic non-contractual ecommerce behavior |
-| Validation | Blocked temporal validation and one untouched test snapshot |
+| Validation | Blocked model selection, dedicated interval calibration, and one untouched test snapshot |
 | Primary metric | WAPE |
 | Decision use | Relative prioritization and configurable service tiers |
 
@@ -31,19 +31,21 @@
 
 | Metric | Model | Baseline |
 |---|---:|---:|
-| WAPE | 0.415 | 0.592 |
-| MAE | 32.03 | 45.67 |
-| RMSE | 46.19 | 68.94 |
-| Spearman | 0.813 | 0.736 |
-| Top 10% value capture | 24.4% | 22.4% |
-| Top 20% value capture | 43.4% | 40.2% |
+| WAPE | 0.421 | 0.592 |
+| MAE | 32.54 | 45.67 |
+| RMSE | 46.90 | 68.94 |
+| Spearman | 0.808 | 0.736 |
+| Top 10% value capture | 24.2% | 22.4% |
+| Top 20% value capture | 43.3% | 40.2% |
 
 Additional model diagnostics:
 
-- Activity average precision: 0.978.
-- Activity Brier score: 0.080.
-- Nominal 80% interval coverage: 74.0%.
-- Mean interval width: 100.82 synthetic currency units.
+- Activity average precision: 0.977.
+- Activity Brier score: 0.082.
+- Raw nominal 80% interval coverage: 71.4%; mean width: 98.40.
+- Split-conformal 80% interval coverage: 81.4%; mean width: 104.70.
+- Protect-tier and highest-decile calibrated coverage: 74.3%; marginal calibration does not guarantee equal conditional coverage.
+- Calibration increased the high-uncertainty flag rate from 67.3% to 70.1% and reduced the aggregate investment ceiling from 4,220.8 to 3,905.9 synthetic currency units.
 
 ## Important drivers
 
@@ -53,11 +55,11 @@ The project reports permutation importance as the increase in holdout WAPE when 
 
 ## Risks and monitoring
 
-- **Calibration drift:** track interval coverage and activity Brier score by scoring month.
+- **Calibration drift:** track raw and calibrated interval coverage and activity Brier score by scoring month.
+- **Conditional undercoverage:** review coverage by value decile and service tier; the committed Protect-tier result remains below target.
 - **Ranking drift:** compare top-decile realized value capture with the baseline.
 - **Data drift:** monitor recency, order frequency, margin, return, and acquisition-channel distributions.
 - **Policy drift:** review tier capacity and investment caps separately from model retraining.
 - **Selection effects:** treatment changes future observations; use experiments to measure intervention impact.
 
 Before deployment, rebuild contribution margin definitions, exclude prohibited variables, test performance across relevant operational groups, calibrate uncertainty, document review rights, and establish a retraining threshold.
-

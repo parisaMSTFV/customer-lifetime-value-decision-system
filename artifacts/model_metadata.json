@@ -24,11 +24,23 @@
     "margin_momentum_90d",
     "recent_order_share"
   ],
+  "interval_calibration": {
+    "calibrated_coverage": 0.8014285714285714,
+    "calibrated_high_uncertainty_rate": 0.7007142857142857,
+    "calibrated_total_investment_ceiling": 3905.8505607820075,
+    "calibration_rows": 1400,
+    "correction": 3.4842195679753085,
+    "customers_newly_flagged_high_uncertainty": 39,
+    "raw_coverage": 0.7171428571428572,
+    "raw_high_uncertainty_rate": 0.6728571428571428,
+    "raw_total_investment_ceiling": 4220.795587085873,
+    "target_coverage": 0.8
+  },
   "model_type": "two-part histogram gradient boosting",
   "selected_parameters": {
-    "learning_rate": 0.08,
-    "max_leaf_nodes": 9,
-    "min_samples_leaf": 20
+    "learning_rate": 0.06,
+    "max_leaf_nodes": 15,
+    "min_samples_leaf": 25
   },
   "target": "180-day discounted contribution margin"
 }

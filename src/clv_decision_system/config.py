@@ -15,8 +15,10 @@ REQUIRED_TOP_LEVEL_KEYS = {
     "lookback_days",
     "horizon_days",
     "annual_discount_rate",
-    "validation_snapshot",
+    "selection_snapshot",
+    "calibration_snapshot",
     "test_snapshot",
+    "interval_target_coverage",
     "policy",
 }
 
@@ -34,8 +36,15 @@ def load_config(path: str | Path) -> dict[str, Any]:
         raise ValueError("n_customers must be at least 50")
     if len(config["snapshot_dates"]) < 4:
         raise ValueError("At least four temporal snapshots are required")
-    if config["validation_snapshot"] not in config["snapshot_dates"]:
-        raise ValueError("validation_snapshot must be listed in snapshot_dates")
-    if config["test_snapshot"] not in config["snapshot_dates"]:
-        raise ValueError("test_snapshot must be listed in snapshot_dates")
+    split_dates = [
+        config["selection_snapshot"],
+        config["calibration_snapshot"],
+        config["test_snapshot"],
+    ]
+    if any(date not in config["snapshot_dates"] for date in split_dates):
+        raise ValueError("All split snapshots must be listed in snapshot_dates")
+    if split_dates != sorted(split_dates) or len(set(split_dates)) != len(split_dates):
+        raise ValueError("selection, calibration, and test snapshots must be ordered")
+    if not 0.0 < float(config["interval_target_coverage"]) < 1.0:
+        raise ValueError("interval_target_coverage must be strictly between zero and one")
     return config

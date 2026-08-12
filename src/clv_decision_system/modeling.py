@@ -60,6 +60,17 @@ class ModelBundle:
     parameters: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class IntervalCalibration:
+    """Split-conformal correction fitted on a dedicated temporal snapshot."""
+
+    target_coverage: float
+    correction: float
+    calibration_rows: int
+    raw_coverage: float
+    calibrated_coverage: float
+
+
 def make_preprocessor() -> ColumnTransformer:
     """Create a dense, reproducible preprocessing graph."""
     categorical_pipeline = Pipeline(
@@ -187,8 +198,12 @@ def fit_final_model(
     )
 
 
-def predict(bundle: ModelBundle, frame: pd.DataFrame) -> pd.DataFrame:
-    """Generate non-negative point estimates and ordered 80% prediction intervals."""
+def predict(
+    bundle: ModelBundle,
+    frame: pd.DataFrame,
+    interval_calibration: IntervalCalibration | None = None,
+) -> pd.DataFrame:
+    """Generate point estimates plus raw and optionally calibrated 80% intervals."""
     transformed = bundle.preprocessor.transform(frame[FEATURES])
     point, active_probability = _point_prediction(
         bundle.classifier,
@@ -197,16 +212,56 @@ def predict(bundle: ModelBundle, frame: pd.DataFrame) -> pd.DataFrame:
     )
     raw_lower = np.clip(bundle.lower_regressor.predict(transformed), 0.0, None)
     raw_upper = np.clip(bundle.upper_regressor.predict(transformed), 0.0, None)
-    lower = np.minimum(raw_lower, point)
-    upper = np.maximum(raw_upper, point)
+    raw_lower = np.minimum(raw_lower, point)
+    raw_upper = np.maximum(raw_upper, point)
+    correction = 0.0 if interval_calibration is None else interval_calibration.correction
+    lower = np.minimum(np.clip(raw_lower - correction, 0.0, None), point)
+    upper = np.maximum(raw_upper + correction, point)
     return pd.DataFrame(
         {
             "predicted_clv_180d": point,
             "active_probability_180d": active_probability,
+            "clv_lower_80_raw": raw_lower,
+            "clv_upper_80_raw": raw_upper,
             "clv_lower_80": lower,
             "clv_upper_80": upper,
         },
         index=frame.index,
+    )
+
+
+def calibrate_intervals(
+    bundle: ModelBundle,
+    calibration_frame: pd.DataFrame,
+    target_coverage: float = 0.80,
+) -> IntervalCalibration:
+    """Fit a conservative split-conformal correction without using the test period."""
+    if not 0.0 < target_coverage < 1.0:
+        raise ValueError("target_coverage must be strictly between zero and one")
+    if calibration_frame.empty:
+        raise ValueError("calibration_frame must contain at least one row")
+
+    predictions = predict(bundle, calibration_frame)
+    actual = calibration_frame[TARGET_COLUMN].to_numpy()
+    raw_lower = predictions["clv_lower_80_raw"].to_numpy()
+    raw_upper = predictions["clv_upper_80_raw"].to_numpy()
+    conformity_scores = np.maximum(raw_lower - actual, actual - raw_upper)
+    rows = len(conformity_scores)
+    finite_sample_quantile = min(1.0, np.ceil((rows + 1) * target_coverage) / rows)
+    correction = max(
+        0.0,
+        float(np.quantile(conformity_scores, finite_sample_quantile, method="higher")),
+    )
+    calibrated_lower = np.clip(raw_lower - correction, 0.0, None)
+    calibrated_upper = raw_upper + correction
+    return IntervalCalibration(
+        target_coverage=target_coverage,
+        correction=correction,
+        calibration_rows=rows,
+        raw_coverage=float(np.mean((actual >= raw_lower) & (actual <= raw_upper))),
+        calibrated_coverage=float(
+            np.mean((actual >= calibrated_lower) & (actual <= calibrated_upper))
+        ),
     )
 
 

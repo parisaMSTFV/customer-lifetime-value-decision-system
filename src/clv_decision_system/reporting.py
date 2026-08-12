@@ -144,6 +144,62 @@ def plot_feature_importance(importance: pd.DataFrame, path: Path) -> None:
     _save_figure(figure, path)
 
 
+def plot_interval_coverage(
+    by_decile: pd.DataFrame,
+    by_tier: pd.DataFrame,
+    target_coverage: float,
+    path: Path,
+) -> None:
+    """Compare raw and calibrated holdout coverage by value and service group."""
+    figure, axes = plt.subplots(1, 2, figsize=(12.0, 4.8), sharey=True)
+    panels = [
+        (by_decile, "predicted_value_decile", "Predicted value decile", axes[0]),
+        (by_tier, "service_tier", "Service tier", axes[1]),
+    ]
+    for frame, group_column, x_label, axis in panels:
+        positions = np.arange(len(frame))
+        axis.plot(
+            positions,
+            frame["raw_coverage"] * 100,
+            marker="o",
+            label="Raw quantile interval",
+            color=COLORS["gray"],
+        )
+        axis.plot(
+            positions,
+            frame["calibrated_coverage"] * 100,
+            marker="o",
+            label="Split-conformal interval",
+            color=COLORS["teal"],
+        )
+        axis.axhline(
+            target_coverage * 100,
+            color=COLORS["gold"],
+            linestyle="--",
+            linewidth=1.6,
+            label="Nominal target",
+        )
+        labels = frame[group_column].astype(str).str.replace("_", " ").str.title()
+        axis.set_xticks(positions, labels, rotation=25 if group_column == "service_tier" else 0)
+        axis.set_xlabel(x_label)
+        axis.set_ylim(0, 102)
+        _style_axis(axis)
+    axes[0].set_ylabel("Empirical holdout coverage (%)")
+    axes[0].set_title("Coverage by predicted value", loc="left")
+    axes[1].set_title("Coverage by operating tier", loc="left")
+    handles, labels = axes[0].get_legend_handles_labels()
+    figure.legend(
+        handles,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.04),
+        ncol=3,
+        frameon=False,
+    )
+    figure.subplots_adjust(bottom=0.20)
+    _save_figure(figure, path)
+
+
 def write_metrics(metrics: dict[str, Any], path: Path) -> None:
     """Write machine-readable results with stable formatting."""
     path.write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -157,6 +213,7 @@ def write_executive_summary(
     """Write a concise business-facing report grounded in executed metrics."""
     model = metrics["holdout"]["model"]
     baseline = metrics["holdout"]["baseline"]
+    interval = metrics["interval_calibration"]
     protect = policy_summary.loc[policy_summary["service_tier"] == "protect"].iloc[0]
     improvement = 1 - model["wape"] / baseline["wape"]
     lines = [
@@ -176,8 +233,16 @@ def write_executive_summary(
         f"- Spearman rank correlation: **{model['spearman']:.3f}**, versus "
         f"**{baseline['spearman']:.3f}** for the baseline.",
         f"- Top 10% realized value capture: **{model['top_10_value_capture']:.1%}**.",
-        "- Empirical coverage of the nominal 80% interval: "
-        f"**{model['interval_80_coverage']:.1%}**.",
+        "- Empirical coverage of the raw nominal 80% interval: "
+        f"**{model['interval_80_raw_coverage']:.1%}**; after split-conformal "
+        f"calibration: **{model['interval_80_coverage']:.1%}**.",
+        "- Calibration changed the high-uncertainty flag rate from "
+        f"**{interval['raw_high_uncertainty_rate']:.1%}** to "
+        f"**{interval['calibrated_high_uncertainty_rate']:.1%}** and changed the "
+        "aggregate policy investment ceiling from "
+        f"**{interval['raw_total_investment_ceiling']:.1f}** to "
+        f"**{interval['calibrated_total_investment_ceiling']:.1f}** synthetic "
+        "currency units.",
         f"- The Protect tier contains **{protect['customer_share']:.1%}** of customers "
         f"and **{protect['realized_value_share']:.1%}** of realized holdout value.",
         "",
@@ -193,8 +258,8 @@ def write_executive_summary(
         "- All customers and orders are synthetic; the results validate the workflow, "
         "not production performance.",
         "- The model estimates 180-day value, not an unlimited customer lifetime.",
-        "- Prediction intervals are empirical model outputs and may require "
-        "recalibration after a distribution shift.",
+        "- Split-conformal calibration improves marginal coverage but does not "
+        "guarantee equal coverage in every customer subgroup or after distribution shift.",
         "- Treatment impact needs randomized experimentation or credible causal "
         "identification; CLV alone cannot supply it.",
         "",
@@ -207,6 +272,8 @@ def create_reports(
     scored: pd.DataFrame,
     tier_summary: pd.DataFrame,
     importance: pd.DataFrame,
+    interval_by_decile: pd.DataFrame,
+    interval_by_tier: pd.DataFrame,
     metrics: dict[str, Any],
     reports_directory: Path,
 ) -> None:
@@ -219,3 +286,9 @@ def create_reports(
     plot_cumulative_capture(scored, figures / "cumulative_value_capture.png")
     plot_tier_portfolio(tier_summary, figures / "tier_portfolio.png")
     plot_feature_importance(importance, figures / "feature_importance.png")
+    plot_interval_coverage(
+        interval_by_decile,
+        interval_by_tier,
+        float(metrics["interval_calibration"]["target_coverage"]),
+        figures / "interval_coverage.png",
+    )

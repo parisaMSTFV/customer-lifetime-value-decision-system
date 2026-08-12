@@ -12,8 +12,10 @@
   "lookback_days": 365,
   "horizon_days": 180,
   "annual_discount_rate": 0.10,
-  "validation_snapshot": "2024-06-30",
+  "selection_snapshot": "2023-12-31",
+  "calibration_snapshot": "2024-06-30",
   "test_snapshot": "2024-12-31",
+  "interval_target_coverage": 0.80,
   "policy": {
     "tier_shares": {
       "protect": 0.10,
@@ -31,4 +33,3 @@
     "uncertainty_ratio": 1.25
   }
 }
-

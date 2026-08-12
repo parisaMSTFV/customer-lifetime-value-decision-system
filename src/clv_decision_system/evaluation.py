@@ -54,6 +54,14 @@ def full_evaluation(
         predictions["clv_lower_80"].to_numpy(),
         predictions["clv_upper_80"].to_numpy(),
     )
+    raw_interval_metrics = regression_metrics(
+        actual,
+        predictions["predicted_clv_180d"].to_numpy(),
+        predictions["clv_lower_80_raw"].to_numpy(),
+        predictions["clv_upper_80_raw"].to_numpy(),
+    )
+    model_metrics["interval_80_raw_coverage"] = raw_interval_metrics["interval_80_coverage"]
+    model_metrics["interval_raw_mean_width"] = raw_interval_metrics["interval_mean_width"]
     model_metrics.update(
         {
             "activity_average_precision": float(
@@ -68,6 +76,46 @@ def full_evaluation(
         "model": model_metrics,
         "baseline": regression_metrics(actual, baseline),
     }
+
+
+def interval_diagnostics(
+    scored: pd.DataFrame,
+    group_column: str,
+) -> pd.DataFrame:
+    """Report raw and calibrated interval performance by an operating group."""
+    required = {
+        group_column,
+        "future_discounted_margin_180d",
+        "clv_lower_80_raw",
+        "clv_upper_80_raw",
+        "clv_lower_80",
+        "clv_upper_80",
+    }
+    missing = required.difference(scored.columns)
+    if missing:
+        raise ValueError(f"Missing interval diagnostic columns: {sorted(missing)}")
+
+    frame = scored.copy()
+    actual = frame["future_discounted_margin_180d"]
+    frame["raw_covered"] = (actual >= frame["clv_lower_80_raw"]) & (
+        actual <= frame["clv_upper_80_raw"]
+    )
+    frame["calibrated_covered"] = (actual >= frame["clv_lower_80"]) & (
+        actual <= frame["clv_upper_80"]
+    )
+    frame["raw_width"] = frame["clv_upper_80_raw"] - frame["clv_lower_80_raw"]
+    frame["calibrated_width"] = frame["clv_upper_80"] - frame["clv_lower_80"]
+    return (
+        frame.groupby(group_column, observed=True)
+        .agg(
+            customers=("customer_id", "count"),
+            raw_coverage=("raw_covered", "mean"),
+            calibrated_coverage=("calibrated_covered", "mean"),
+            raw_mean_width=("raw_width", "mean"),
+            calibrated_mean_width=("calibrated_width", "mean"),
+        )
+        .reset_index()
+    )
 
 
 def permutation_wape_importance(
