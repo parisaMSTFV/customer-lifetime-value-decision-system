@@ -10,3 +10,7 @@ dist/
 .env
 .DS_Store
 
+# Downloaded public validation data. Source metadata and aggregate reports stay tracked.
+data/external/raw/
+data/external/processed/
+data/external/quality_report.json
