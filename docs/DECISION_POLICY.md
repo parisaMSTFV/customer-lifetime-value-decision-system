@@ -4,6 +4,10 @@
 
 The model produces a continuous estimate. The policy converts that estimate into a capacity plan that a CRM or customer operations team can review and configure.
 
+This policy applies only to the synthetic contribution-margin case. The UCI public
+validation has no margin or treatment-cost fields, so its revenue ranking is not used to
+transfer these investment ceilings.
+
 | Tier | Population share | Default ceiling per customer | Operational interpretation |
 |---|---:|---:|---|
 | Protect | 10% | 24 | Highest predicted value; preserve service continuity and review high-uncertainty cases |

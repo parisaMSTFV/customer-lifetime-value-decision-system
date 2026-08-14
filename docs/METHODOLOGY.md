@@ -87,3 +87,49 @@ The raw holdout interval covered 71.4% of outcomes; the calibrated interval cove
 ## Reproducibility
 
 The generator seed, feature windows, four-way split dates, interval target, model candidates, and policy settings are versioned. CI regenerates the committed outputs on Python 3.11 and 3.12 and fails if tracked data, artifacts, or reports change. The expected fingerprint is `b24f3c2d959f40ea`.
+
+## Licensed public external validation
+
+The companion validation uses UCI Online Retail II under CC BY 4.0. It is intentionally
+separate from the synthetic contribution-margin policy: the public source has revenue
+and cancellations, but no cost, margin, marketing-treatment, or causal-outcome fields.
+
+### Contract and temporal design
+
+- The official archive is verified against a pinned SHA-256 before extraction.
+- DuckDB enforces a typed transaction contract and builds five customer snapshots.
+- Features use transactions strictly before the scoring date; labels use the following
+  180 days. A SQL/Pandas parity test checks the boundary on a hand-built fixture.
+- Exact duplicates are removed, missing customer identifiers are excluded, and
+  cancellations remain negative signed revenue. Every exclusion is counted.
+- The target is customer-level 180-day net revenue floored at zero, not profit or full
+  lifetime value.
+
+| Role | Snapshot date | Rows |
+|---|---:|---:|
+| Training | 2010-06-01 and 2010-09-01 | 6,024 |
+| Model selection | 2010-12-01 | 4,266 |
+| Interval calibration | 2011-03-01 | 4,537 |
+| Untouched test | 2011-06-01 | 4,933 |
+
+The public model uses the same explainable two-part logic: future-activity probability
+multiplied by conditional log-revenue, with separate quantile models and a split-conformal
+widening step. A recency-adjusted trailing 180-day net-revenue rule is fixed as the
+baseline before the test is opened.
+
+### Executed result
+
+The public test is mixed and is reported without selection after the fact. The baseline
+has lower WAPE (0.662 versus 0.689), while the model has higher Spearman correlation
+(0.598 versus 0.557) and captures more realized value in the top 10% (61.9% versus
+60.6%) and top 20% (74.9% versus 72.6%).
+
+The raw interval already covered 93.9% of the calibration snapshot, so the non-negative
+conformal correction is correctly £0. On the untouched test, raw and calibrated marginal
+coverage are both 87.8%. Coverage falls to 75.9% in the highest predicted-value decile,
+which prevents a subgroup guarantee. Results are decision evidence for ranking under
+capacity; they do not justify a spend ceiling or treatment recommendation.
+
+The public snapshot fingerprint is `5264e8bd761b9991`. Raw data and row-level customer
+scores are not committed; the repository publishes only aggregate tables, figures, and
+machine-readable metrics.

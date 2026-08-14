@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from pathlib import Path
-
-import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -16,6 +13,7 @@ from clv_decision_system.config import load_public_validation_config  # noqa: E4
 from clv_decision_system.public_data import read_canonical_transactions  # noqa: E402, I001
 from clv_decision_system.public_features import (  # noqa: E402, I001
     build_public_customer_snapshots,
+    public_snapshot_fingerprint,
 )
 
 
@@ -37,9 +35,7 @@ def main() -> None:
     )
     output = processed / "customer_snapshots.csv.gz"
     snapshots.to_csv(output, index=False, compression="gzip")
-    fingerprint = hashlib.sha256(
-        pd.util.hash_pandas_object(snapshots, index=True).values.tobytes()
-    ).hexdigest()[:16]
+    fingerprint = public_snapshot_fingerprint(snapshots)
     print(
         json.dumps(
             {

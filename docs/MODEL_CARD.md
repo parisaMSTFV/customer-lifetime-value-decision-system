@@ -63,3 +63,36 @@ The project reports permutation importance as the increase in holdout WAPE when 
 - **Selection effects:** treatment changes future observations; use experiments to measure intervention impact.
 
 Before deployment, rebuild contribution margin definitions, exclude prohibited variables, test performance across relevant operational groups, calibrate uncertainty, document review rights, and establish a retraining threshold.
+
+## Public validation companion
+
+This is an external check of the analytical method, not a production validation of the
+synthetic policy.
+
+| Item | Public companion |
+|---|---|
+| Data | UCI Online Retail II, CC BY 4.0 |
+| Unit | Customer at a temporal snapshot |
+| Target | Next 180-day net revenue, floored at zero |
+| Test | Untouched 2011-06-01 snapshot, 4,933 customers |
+| Safe decision use | Relative ranking and fixed-capacity review evidence |
+| Not supported | Profit, spend ceilings, causal treatment choice, production accuracy |
+
+| Public holdout metric | Model | Baseline |
+|---|---:|---:|
+| WAPE | 0.689 | **0.662** |
+| MAE | 567.32 | **545.39** |
+| RMSE | 3,360.32 | **2,769.19** |
+| Spearman | **0.598** | 0.557 |
+| Top 10% value capture | **61.9%** | 60.6% |
+| Top 20% value capture | **74.9%** | 72.6% |
+
+The model does not beat the fixed baseline on point error. It is retained because model
+selection was completed before the final test and because it provides stronger ranking
+evidence; the negative result remains visible. Raw and calibrated interval coverage are
+both 87.8%, with a £0 conformal correction because the calibration snapshot already
+exceeded the nominal target. Highest-decile coverage is only 75.9%.
+
+Public raw data, canonical transactions, snapshots, and customer-level scores remain
+gitignored. Aggregate evidence is in
+[`reports/public_validation/`](../reports/public_validation/).
