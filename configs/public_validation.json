@@ -1,0 +1,16 @@
+{
+  "calibration_snapshot": "2011-03-01",
+  "horizon_days": 180,
+  "interval_target_coverage": 0.8,
+  "lookback_days": 365,
+  "seed": 42,
+  "selection_snapshot": "2010-12-01",
+  "snapshot_dates": [
+    "2010-06-01",
+    "2010-09-01",
+    "2010-12-01",
+    "2011-03-01",
+    "2011-06-01"
+  ],
+  "test_snapshot": "2011-06-01"
+}
