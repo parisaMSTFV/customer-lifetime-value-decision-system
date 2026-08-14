@@ -209,3 +209,25 @@ def prepare_public_data(
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps(quality, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return quality
+
+
+def read_canonical_transactions(path: str | Path) -> pd.DataFrame:
+    """Read the ignored canonical table with stable identifier and date types."""
+    frame = pd.read_csv(
+        Path(path),
+        compression="gzip",
+        dtype={
+            "invoice_id": "string",
+            "stock_code": "string",
+            "customer_id": "string",
+            "country": "string",
+            "source_sheet": "string",
+        },
+        parse_dates=["invoice_date"],
+    )
+    missing = set(CANONICAL_COLUMNS).difference(frame.columns)
+    if missing:
+        raise ValueError(f"Canonical public table is missing columns: {sorted(missing)}")
+    if frame.empty:
+        raise ValueError("Canonical public table is empty")
+    return frame[CANONICAL_COLUMNS]
