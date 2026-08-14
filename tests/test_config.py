@@ -13,7 +13,10 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from clv_decision_system.config import load_config  # noqa: E402, I001
+from clv_decision_system.config import (  # noqa: E402, I001
+    load_config,
+    load_public_validation_config,
+)
 from clv_decision_system.pipeline import _split_snapshots  # noqa: E402, I001
 
 
@@ -87,6 +90,20 @@ class ConfigTests(unittest.TestCase):
         self.assertLess(train["snapshot_date"].max(), selection["snapshot_date"].min())
         self.assertLess(selection["snapshot_date"].max(), calibration["snapshot_date"].min())
         self.assertLess(calibration["snapshot_date"].max(), test["snapshot_date"].min())
+
+    def test_public_config_is_validated_independently(self) -> None:
+        public_config = {
+            "seed": 42,
+            "snapshot_dates": ["2020-01-01", "2020-04-01", "2020-07-01", "2020-10-01"],
+            "lookback_days": 365,
+            "horizon_days": 180,
+            "selection_snapshot": "2020-04-01",
+            "calibration_snapshot": "2020-07-01",
+            "test_snapshot": "2020-10-01",
+            "interval_target_coverage": 0.8,
+        }
+        result = load_public_validation_config(self._write_config(public_config))
+        self.assertEqual(result["horizon_days"], 180)
 
 
 if __name__ == "__main__":

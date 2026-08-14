@@ -1,10 +1,16 @@
-.PHONY: install run test lint format clean
+.PHONY: install run public-data public-snapshots test lint format clean
 
 install:
 	python -m pip install -e .
 
 run:
 	python scripts/run_pipeline.py
+
+public-data:
+	python scripts/download_public_data.py
+
+public-snapshots:
+	python scripts/build_public_snapshots.py
 
 test:
 	python -m unittest discover -s tests -v
@@ -19,4 +25,3 @@ format:
 
 clean:
 	python scripts/clean_generated.py
-
