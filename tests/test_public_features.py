@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from io import StringIO
 from pathlib import Path
 
 import pandas as pd
@@ -15,6 +16,7 @@ from clv_decision_system.public_features import (  # noqa: E402, I001
     PUBLIC_FEATURES,
     build_public_customer_snapshots,
     build_public_customer_snapshots_pandas,
+    public_snapshot_fingerprint,
 )
 
 
@@ -93,6 +95,23 @@ class PublicFeatureTests(unittest.TestCase):
         self.assertTrue(set(PUBLIC_FEATURES).issubset(snapshot.columns))
         numeric = [column for column in PUBLIC_FEATURES if column != "country"]
         self.assertTrue(all(pd.api.types.is_numeric_dtype(snapshot[column]) for column in numeric))
+
+    def test_snapshot_fingerprint_survives_csv_dtype_inference(self) -> None:
+        snapshot = build_public_customer_snapshots(
+            transaction_fixture(),
+            ["2020-04-01"],
+            lookback_days=365,
+            horizon_days=90,
+            sql_directory=PROJECT_ROOT / "sql",
+        )
+        reloaded = pd.read_csv(
+            StringIO(snapshot.to_csv(index=False)),
+            dtype={"customer_id": "string", "country": "string", "snapshot_date": "string"},
+        )
+        self.assertEqual(
+            public_snapshot_fingerprint(snapshot),
+            public_snapshot_fingerprint(reloaded),
+        )
 
 
 if __name__ == "__main__":

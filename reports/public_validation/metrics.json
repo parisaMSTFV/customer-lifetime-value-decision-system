@@ -1,0 +1,106 @@
+{
+  "conditional_interval": {
+    "highest_value_decile_coverage": 0.7591093117408907,
+    "highest_value_decile_mean_width": 6524.260602546831
+  },
+  "data": {
+    "cancellation_rows_retained": 18688,
+    "countries": 41,
+    "customers": 5939,
+    "dataset": "UCI Online Retail II",
+    "date_max": "2011-12-09T12:50:00",
+    "date_min": "2009-12-01T07:45:00",
+    "exact_duplicate_rows_removed": 12133,
+    "invoices": 44870,
+    "license": "CC BY 4.0",
+    "missing_customer_rows_excluded": 243007,
+    "other_invalid_rows_excluded": 12069,
+    "snapshot_fingerprint": "5264e8bd761b9991",
+    "snapshot_rows": 19760,
+    "source_rows": 1067371,
+    "synthetic": false,
+    "usable_transaction_rows": 812295
+  },
+  "decision_evidence": {
+    "baseline_top_10_value_capture": 0.6062133464348771,
+    "baseline_top_20_value_capture": 0.7263985639793951,
+    "model_top_10_value_capture": 0.6189018821865296,
+    "model_top_20_value_capture": 0.7486501886976819
+  },
+  "holdout": {
+    "baseline": {
+      "mae": 545.3911186866885,
+      "rmse": 2769.185622663602,
+      "spearman": 0.5566230831081831,
+      "top_10_value_capture": 0.6062133464348771,
+      "top_20_value_capture": 0.7263985639793951,
+      "wape": 0.6622473251062917
+    },
+    "model": {
+      "activity_average_precision": 0.8140289980437642,
+      "activity_brier_score": 0.18857979897848104,
+      "interval_80_coverage": 0.8779647273464424,
+      "interval_80_raw_coverage": 0.8779647273464424,
+      "interval_mean_width": 1374.7290432025313,
+      "interval_raw_mean_width": 1374.7290432025313,
+      "mae": 567.3235639141517,
+      "rmse": 3360.3241034764683,
+      "spearman": 0.5976570906592972,
+      "top_10_value_capture": 0.6189018821865296,
+      "top_20_value_capture": 0.7486501886976819,
+      "wape": 0.6888790444124357
+    }
+  },
+  "interval_calibration": {
+    "calibrated_coverage": 0.9389464403791051,
+    "calibration_rows": 4537,
+    "correction": 0.0,
+    "raw_coverage": 0.9389464403791051,
+    "target_coverage": 0.8
+  },
+  "model_selection": {
+    "candidates": [
+      {
+        "learning_rate": 0.05,
+        "max_leaf_nodes": 15,
+        "min_samples_leaf": 35,
+        "selection_wape": 0.9919105183945274
+      },
+      {
+        "learning_rate": 0.035,
+        "max_leaf_nodes": 31,
+        "min_samples_leaf": 55,
+        "selection_wape": 1.035777185297307
+      },
+      {
+        "learning_rate": 0.07,
+        "max_leaf_nodes": 9,
+        "min_samples_leaf": 25,
+        "selection_wape": 0.9937375018785842
+      }
+    ],
+    "selected_parameters": {
+      "learning_rate": 0.05,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 35
+    }
+  },
+  "publication_guardrail": {
+    "not_available": [
+      "contribution margin",
+      "treatment cost",
+      "causal uplift"
+    ],
+    "row_level_customer_output_committed": false,
+    "target": "180-day net revenue"
+  },
+  "split": {
+    "calibration_rows": 4537,
+    "calibration_snapshot": "2011-03-01",
+    "selection_rows": 4266,
+    "selection_snapshot": "2010-12-01",
+    "test_rows": 4933,
+    "test_snapshot": "2011-06-01",
+    "train_rows": 6024
+  }
+}

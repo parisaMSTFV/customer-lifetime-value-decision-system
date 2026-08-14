@@ -2,12 +2,16 @@
 
 [![CI](https://github.com/parisaMSTFV/customer-lifetime-value-decision-system/actions/workflows/ci.yml/badge.svg)](https://github.com/parisaMSTFV/customer-lifetime-value-decision-system/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Data](https://img.shields.io/badge/data-100%25%20synthetic-2A9D8F)](data/README.md)
+[![Data](https://img.shields.io/badge/data-synthetic%20%2B%20UCI%20CC%20BY%204.0-2A9D8F)](docs/PUBLIC_DATA_CARD.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-16324F.svg)](LICENSE)
 
-An end-to-end decision system that estimates **180-day discounted customer contribution margin** for non-contractual ecommerce, validates the estimate on a future period, and turns the ranking into transparent CRM service tiers.
+An end-to-end customer-value decision system with two complementary evidence paths: a
+controlled synthetic contribution-margin case and a licensed external validation on
+real retail transactions.
 
-> All customers, orders, and results are synthetic. Executed metrics validate the workflow under a controlled setup; they are not claims about production performance.
+> The decision-policy case is synthetic. The separate external validation uses UCI
+> Online Retail II under CC BY 4.0. No employer data, confidential business logic, or
+> row-level public customer output is committed.
 
 ## The decision
 
@@ -23,7 +27,7 @@ This project separates three layers that are easy to conflate:
 
 The policy does not claim that a treatment will cause the predicted value. Treatment uplift requires experimental or causal evidence.
 
-## Executed holdout results
+## Executed synthetic holdout results
 
 The final snapshot (`2024-12-31`) is untouched during model selection, interval calibration, and policy design.
 
@@ -43,15 +47,45 @@ The **Protect** tier contains 10% of holdout customers and 24.2% of realized hol
 
 ![Cumulative realized value captured](reports/figures/cumulative_value_capture.png)
 
+## Public external validation
+
+The same temporal discipline was tested outside the simulator on licensed
+[UCI Online Retail II](docs/PUBLIC_DATA_CARD.md) transactions. DuckDB constructs five
+leakage-safe customer snapshots from 812,295 usable transaction lines. The target is
+**180-day net revenue**—not margin, profit, causal uplift, or unlimited lifetime value.
+
+The June 2011 snapshot remained untouched until model selection and interval calibration
+were complete.
+
+| Metric | Two-part model | Fixed trailing-value baseline | Honest interpretation |
+|---|---:|---:|---|
+| WAPE | 0.689 | **0.662** | Baseline point error is 4.0% lower |
+| Spearman rank correlation | **0.598** | 0.557 | Model orders customers better |
+| Top 10% realized value capture | **61.9%** | 60.6% | Small model advantage at tight capacity |
+| Top 20% realized value capture | **74.9%** | 72.6% | Ranking advantage persists |
+| Raw / calibrated 80% interval coverage | 87.8% / 87.8% | — | Raw interval already exceeded target; correction was £0 |
+
+This is deliberately a mixed result: the model does **not** beat the simple baseline on
+point accuracy, while it does improve ranking and fixed-capacity value capture. The
+baseline and negative result are retained to prevent cherry-picking.
+
+![Public out-of-time value by decile](reports/public_validation/figures/value_by_decile.png)
+
+![Public cumulative value capture](reports/public_validation/figures/cumulative_value_capture.png)
+
+See the [executed public report](reports/public_validation/executive_summary.md) and
+[machine-readable metrics](reports/public_validation/metrics.json).
+
 ## Workflow
 
 ```mermaid
 flowchart LR
-    A["Synthetic customers and orders"] --> B["SQL as-of snapshots"]
-    B --> C["Temporal model selection"]
-    C --> D["Interval calibration"]
-    D --> E["Untouched holdout evaluation"]
-    E --> F["CRM tiers and guardrails"]
+    A["Synthetic customers and orders"] --> B["SQLite as-of snapshots"]
+    U["UCI Online Retail II"] --> D["DuckDB data contract and as-of snapshots"]
+    B --> C["Margin model, calibration, holdout"]
+    D --> E["Revenue model, calibration, holdout"]
+    C --> F["Synthetic CRM tiers and guardrails"]
+    E --> G["External ranking and capacity evidence"]
 ```
 
 - The generator creates lifecycle, seasonality, return, discount, and margin behavior with a fixed seed.
@@ -124,6 +158,19 @@ python scripts/run_pipeline.py
 python -m unittest discover -s tests -v
 ```
 
+Run the full licensed public-data path separately:
+
+```bash
+make public-data
+make public-snapshots
+make public-validate
+```
+
+The downloader verifies the official archive checksum. Raw, canonical, and row-level
+snapshot files remain gitignored; only aggregate reports are committed. CI uses small
+fixtures and never downloads UCI data, so routine checks are fast and independent of an
+external service.
+
 The pipeline regenerates data, scores, summaries, figures, and `reports/metrics.json`.
 CI requires byte-identical synthetic data and compares machine-readable model outputs
 with a strict numerical tolerance for cross-platform floating-point differences. PNG
@@ -134,19 +181,26 @@ fingerprint is `b24f3c2d959f40ea`.
 
 | Path | Purpose |
 |---|---|
-| `src/clv_decision_system/` | Synthetic data, features, models, evaluation, policy, and reporting |
-| `sql/` | Executed leakage-safe feature and label queries |
-| `configs/pipeline.json` | Split dates, interval target, random seed, tier capacity, and spending guardrails |
-| `data/` | Generated synthetic inputs and temporal snapshots |
+| `src/clv_decision_system/` | Synthetic decision pipeline plus independent public-data ingestion, modeling, and reporting modules |
+| `sql/` | Executed SQLite and DuckDB data-contract, feature, and label queries |
+| `configs/` | Versioned synthetic and public temporal splits, seeds, intervals, and policy settings |
+| `data/` | Generated synthetic inputs plus ignored external-data workspace |
 | `artifacts/` | Holdout scores, tier summary, feature importance, and model metadata |
-| `reports/` | Machine-readable metrics, conditional interval diagnostics, business summary, and figures |
-| `tests/` | Data, temporal-boundary, model, metric, and policy tests |
+| `reports/` | Synthetic outputs and aggregate-only public validation evidence |
+| `docs/PUBLIC_DATA_CARD.md` | UCI provenance, license, field use, exclusions, and limitations |
+| `tests/` | Data contracts, SQL/Pandas parity, temporal boundaries, models, metrics, and policy tests |
 | `.github/workflows/ci.yml` | Python 3.11/3.12 quality and reproducibility checks |
 
 ## Limitations
 
 - “Lifetime value” is operationalized as a 180-day horizon, not an unlimited lifetime.
 - Synthetic performance cannot establish production accuracy or business impact.
+- The public validation covers one anonymous UK retailer and predicts net revenue,
+  because margin, treatment cost, and marketing exposure are unavailable.
+- On the public holdout, the model has worse point error than the fixed baseline despite
+  better ranking; neither result establishes transferability to another retailer.
+- Public revenue is heavy-tailed, and the highest predicted-value decile reaches only
+  75.9% interval coverage despite 87.8% marginal coverage.
 - Customers are re-observed across snapshots, matching a recurring scoring setup; evaluation is out-of-time rather than customer-disjoint.
 - Split-conformal calibration improves marginal coverage but does not guarantee 80% coverage within every value decile or service tier.
 - Calibration validity depends on temporal exchangeability and must be monitored after distribution shift.
@@ -159,4 +213,7 @@ fingerprint is `b24f3c2d959f40ea`.
 - [Model Card](docs/MODEL_CARD.md)
 - [Decision Policy](docs/DECISION_POLICY.md)
 - [Data Dictionary](docs/DATA_DICTIONARY.md)
+- [Public Data Card](docs/PUBLIC_DATA_CARD.md)
+- [Executable SQL Layer](sql/README.md)
 - [Executed Decision Report](reports/executive_summary.md)
+- [Executed Public Validation Report](reports/public_validation/executive_summary.md)

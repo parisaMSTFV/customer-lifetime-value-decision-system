@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import duckdb
@@ -29,6 +30,18 @@ PUBLIC_NUMERIC_FEATURES = [
     "recent_order_share",
 ]
 PUBLIC_FEATURES = PUBLIC_CATEGORICAL_FEATURES + PUBLIC_NUMERIC_FEATURES
+
+
+def public_snapshot_fingerprint(frame: pd.DataFrame) -> str:
+    """Hash a stable text representation independent of inferred CSV dtypes."""
+    ordered = frame.sort_values(["snapshot_date", "customer_id"]).reset_index(drop=True)
+    content = ordered.to_csv(
+        index=False,
+        date_format="%Y-%m-%d",
+        float_format="%.10g",
+        lineterminator="\n",
+    )
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
 
 def _sql(path: Path) -> str:
