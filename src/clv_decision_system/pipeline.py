@@ -65,10 +65,14 @@ def _split_snapshots(
 def run_pipeline(
     project_root: str | Path,
     config_path: str | Path | None = None,
+    output_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run data generation, modeling, decision policy, and reporting."""
-    root = Path(project_root).resolve()
-    selected_config = Path(config_path) if config_path else root / "configs" / "pipeline.json"
+    source_root = Path(project_root).resolve()
+    output_root = Path(output_dir).resolve() if output_dir else source_root
+    selected_config = (
+        Path(config_path) if config_path else source_root / "configs" / "pipeline.json"
+    )
     config = load_config(selected_config)
 
     customers_internal = generate_customers(config["n_customers"], config["seed"])
@@ -86,7 +90,7 @@ def run_pipeline(
         config["lookback_days"],
         config["horizon_days"],
         config["annual_discount_rate"],
-        root / "sql",
+        source_root / "sql",
     )
     fingerprint = _data_fingerprint(customers, orders, snapshots)
 
@@ -185,14 +189,20 @@ def run_pipeline(
         },
     }
 
-    _write_csv(customers, root / "data" / "synthetic" / "customers.csv")
-    _write_csv(orders, root / "data" / "synthetic" / "orders.csv")
-    _write_csv(snapshots, root / "data" / "processed" / "customer_snapshots.csv")
-    _write_csv(scored, root / "artifacts" / "holdout_customer_scores.csv")
-    _write_csv(tiers, root / "artifacts" / "service_tier_summary.csv")
-    _write_csv(importance, root / "artifacts" / "feature_importance.csv")
-    _write_csv(interval_by_decile, root / "reports" / "interval_coverage_by_decile.csv")
-    _write_csv(interval_by_tier, root / "reports" / "interval_coverage_by_tier.csv")
+    _write_csv(customers, output_root / "data" / "synthetic" / "customers.csv")
+    _write_csv(orders, output_root / "data" / "synthetic" / "orders.csv")
+    _write_csv(snapshots, output_root / "data" / "processed" / "customer_snapshots.csv")
+    _write_csv(scored, output_root / "artifacts" / "holdout_customer_scores.csv")
+    _write_csv(tiers, output_root / "artifacts" / "service_tier_summary.csv")
+    _write_csv(importance, output_root / "artifacts" / "feature_importance.csv")
+    _write_csv(
+        interval_by_decile,
+        output_root / "reports" / "interval_coverage_by_decile.csv",
+    )
+    _write_csv(
+        interval_by_tier,
+        output_root / "reports" / "interval_coverage_by_tier.csv",
+    )
     model_metadata = {
         "model_type": "two-part histogram gradient boosting",
         "target": "180-day discounted contribution margin",
@@ -201,7 +211,7 @@ def run_pipeline(
         "interval_calibration": interval_calibration_metrics,
         "data_fingerprint": fingerprint,
     }
-    metadata_path = root / "artifacts" / "model_metadata.json"
+    metadata_path = output_root / "artifacts" / "model_metadata.json"
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_path.write_text(
         json.dumps(model_metadata, indent=2, sort_keys=True) + "\n",
@@ -214,6 +224,6 @@ def run_pipeline(
         interval_by_decile,
         interval_by_tier,
         metrics,
-        root / "reports",
+        output_root / "reports",
     )
     return metrics

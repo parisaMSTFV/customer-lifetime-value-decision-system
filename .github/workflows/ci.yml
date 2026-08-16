@@ -30,6 +30,6 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Reproduce committed outputs
         run: |
-          python scripts/run_pipeline.py
+          python scripts/run_pipeline.py --output-dir .
           git diff --exit-code -- data
           python scripts/check_reproducibility.py
