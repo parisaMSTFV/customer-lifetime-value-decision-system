@@ -9,6 +9,7 @@ build/
 dist/
 .env
 .DS_Store
+local-runs/
 
 # Downloaded public validation data. Source metadata and aggregate reports stay tracked.
 data/external/raw/

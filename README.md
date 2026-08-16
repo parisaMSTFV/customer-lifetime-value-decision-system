@@ -158,6 +158,10 @@ python scripts/run_pipeline.py
 python -m unittest discover -s tests -v
 ```
 
+The script writes local data, artifacts, and reports under the ignored
+`local-runs/latest` directory. Maintainers can reproduce the committed evidence with
+`python scripts/run_pipeline.py --output-dir .`.
+
 Run the full licensed public-data path separately:
 
 ```bash
