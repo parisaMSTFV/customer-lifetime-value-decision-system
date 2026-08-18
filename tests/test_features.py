@@ -54,6 +54,23 @@ class FeatureSnapshotTests(unittest.TestCase):
         self.assertEqual(customer_one["future_orders_180d"], 1)
         self.assertGreater(customer_one["future_discounted_margin_180d"], 39.0)
         self.assertLess(customer_one["future_discounted_margin_180d"], 40.0)
+        self.assertEqual(customer_one["future_active_180d"], 1)
+
+    def test_negative_future_margin_still_counts_as_purchase_activity(self) -> None:
+        orders = self.orders.copy()
+        orders.loc[orders["order_id"] == "O2", "contribution_margin"] = -40.0
+        snapshot = build_customer_snapshots(
+            self.customers,
+            orders,
+            ["2023-06-30"],
+            lookback_days=365,
+            horizon_days=180,
+            annual_discount_rate=0.1,
+            sql_directory=PROJECT_ROOT / "sql",
+        )
+        customer_one = snapshot.loc[snapshot["customer_id"] == "C00001"].iloc[0]
+        self.assertLess(customer_one["future_discounted_margin_180d"], 0.0)
+        self.assertEqual(customer_one["future_active_180d"], 1)
 
     def test_snapshot_keys_are_unique(self) -> None:
         snapshot = build_customer_snapshots(

@@ -6,12 +6,13 @@ Prioritize customers by expected discounted contribution margin over the next 18
 
 ## Untouched holdout evidence
 
-- Model WAPE: **0.421**, versus **0.592** for the recency-adjusted trailing-margin baseline (28.8% relative error reduction).
-- Spearman rank correlation: **0.808**, versus **0.736** for the baseline.
-- Top 10% realized value capture: **24.2%**.
-- Empirical coverage of the raw nominal 80% interval: **71.4%**; after split-conformal calibration: **81.4%**.
-- Calibration changed the high-uncertainty flag rate from **67.3%** to **70.1%** and changed the aggregate policy investment ceiling from **4220.8** to **3905.9** synthetic currency units.
-- The Protect tier contains **10.0%** of customers and **24.2%** of realized holdout value.
+- Model WAPE: **0.500**, versus **0.598** for the recency-adjusted trailing-margin baseline (16.4% relative error reduction).
+- Spearman rank correlation: **0.788**, versus **0.718** for the baseline.
+- Top 10% realized value capture: **24.7%**.
+- Empirical coverage of the raw nominal 80% interval: **75.0%**; after split-conformal calibration: **82.6%**.
+- Calibration changed the high-uncertainty flag rate from **65.5%** to **70.2%** and changed the aggregate policy investment ceiling from **3712.1** to **3372.3** synthetic currency units.
+- The Protect tier contains **10.0%** of customers and **24.7%** of realized holdout value.
+- Aggregate predicted value is **117.4%** of realized value; **4.1%** of customers have negative realized signed margin.
 
 ## How to use the output
 

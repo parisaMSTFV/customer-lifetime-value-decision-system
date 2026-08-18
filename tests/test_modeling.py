@@ -14,6 +14,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from clv_decision_system.evaluation import (  # noqa: E402, I001
     interval_diagnostics,
+    paired_bootstrap_comparison,
     regression_metrics,
     top_fraction_capture,
 )
@@ -56,13 +57,28 @@ class ModelingTests(unittest.TestCase):
     def test_all_declared_features_exist(self) -> None:
         self.assertTrue(set(CATEGORICAL_FEATURES + NUMERIC_FEATURES).issubset(self.frame))
 
-    def test_predictions_are_non_negative_and_intervals_are_ordered(self) -> None:
+    def test_predictions_are_finite_and_intervals_are_ordered(self) -> None:
         result = predict(self.bundle, self.frame.head(20))
-        self.assertTrue((result["predicted_clv_180d"] >= 0).all())
+        self.assertTrue(np.isfinite(result.select_dtypes(include="number")).all().all())
         self.assertTrue((result["clv_lower_80_raw"] <= result["predicted_clv_180d"]).all())
         self.assertTrue((result["predicted_clv_180d"] <= result["clv_upper_80_raw"]).all())
         self.assertTrue((result["clv_lower_80"] <= result["predicted_clv_180d"]).all())
         self.assertTrue((result["predicted_clv_180d"] <= result["clv_upper_80"]).all())
+
+    def test_two_part_model_can_represent_negative_conditional_value(self) -> None:
+        frame = self.frame.copy()
+        frame[TARGET_COLUMN] = np.where(
+            frame[ACTIVE_COLUMN] == 1,
+            -20.0 - frame["margin_180d"],
+            0.0,
+        )
+        bundle = fit_final_model(
+            frame,
+            {"max_leaf_nodes": 9, "learning_rate": 0.08, "min_samples_leaf": 10},
+            seed=19,
+        )
+        result = predict(bundle, frame.head(20))
+        self.assertTrue((result["predicted_clv_180d"] < 0).all())
 
     def test_interval_calibration_reaches_target_on_calibration_snapshot(self) -> None:
         calibration_frame = self.frame.iloc[:60].copy()
@@ -106,6 +122,17 @@ class ModelingTests(unittest.TestCase):
         actual = np.array([1.0, 2.0, 7.0, 10.0])
         score = np.array([0.0, 1.0, 2.0, 3.0])
         self.assertEqual(top_fraction_capture(actual, score, 0.25), 0.5)
+
+    def test_paired_bootstrap_is_deterministic_and_aggregate_only(self) -> None:
+        actual = np.arange(1.0, 41.0)
+        model = actual + np.sin(actual) * 0.1
+        baseline = actual[::-1]
+        first = paired_bootstrap_comparison(actual, model, baseline, 200, seed=42)
+        second = paired_bootstrap_comparison(actual, model, baseline, 200, seed=42)
+        self.assertEqual(first, second)
+        for result in first.values():
+            self.assertLessEqual(result["ci_lower"], result["ci_upper"])
+            self.assertNotIn("indices", result)
 
     def test_interval_diagnostics_reports_raw_and_calibrated_coverage(self) -> None:
         scored = pd.DataFrame(

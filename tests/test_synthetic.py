@@ -38,7 +38,7 @@ class SyntheticDataTests(unittest.TestCase):
 
     def test_orders_have_valid_bounds_and_unique_ids(self) -> None:
         self.assertTrue(self.orders["order_id"].is_unique)
-        self.assertTrue((self.orders["contribution_margin"] >= 0).all())
+        self.assertTrue((self.orders["contribution_margin"] < 0).any())
         dates = pd.to_datetime(self.orders["order_date"])
         self.assertGreaterEqual(dates.min(), pd.Timestamp("2023-01-01"))
         self.assertLessEqual(dates.max(), pd.Timestamp("2023-12-31"))

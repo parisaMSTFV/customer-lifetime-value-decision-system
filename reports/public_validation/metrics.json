@@ -1,7 +1,45 @@
 {
+  "bootstrap_comparison": {
+    "iterations": 1000,
+    "method": "paired customer-level resampling with replacement",
+    "metrics": {
+      "spearman_difference": {
+        "ci_lower": 0.046573741186115854,
+        "ci_upper": 0.08289924686576962,
+        "confidence": 0.95,
+        "estimate": 0.06445531244547409,
+        "favorable_direction": "positive",
+        "probability_model_better": 1.0
+      },
+      "top_10_capture_difference": {
+        "ci_lower": 0.0048429671810447635,
+        "ci_upper": 0.030212722847216385,
+        "confidence": 0.95,
+        "estimate": 0.01783674104729771,
+        "favorable_direction": "positive",
+        "probability_model_better": 0.998
+      },
+      "top_20_capture_difference": {
+        "ci_lower": 0.013419040490782401,
+        "ci_upper": 0.042915818860143604,
+        "confidence": 0.95,
+        "estimate": 0.02751917636491319,
+        "favorable_direction": "positive",
+        "probability_model_better": 1.0
+      },
+      "wape_difference": {
+        "ci_lower": -0.010597030919358073,
+        "ci_upper": 0.047142800772715245,
+        "confidence": 0.95,
+        "estimate": 0.01900115756569387,
+        "favorable_direction": "negative",
+        "probability_model_better": 0.095
+      }
+    }
+  },
   "conditional_interval": {
-    "highest_value_decile_coverage": 0.7591093117408907,
-    "highest_value_decile_mean_width": 6524.260602546831
+    "highest_value_decile_coverage": 0.6578947368421053,
+    "highest_value_decile_mean_width": 5365.388387677293
   },
   "data": {
     "cancellation_rows_retained": 18688,
@@ -13,49 +51,64 @@
     "exact_duplicate_rows_removed": 12133,
     "invoices": 44870,
     "license": "CC BY 4.0",
+    "lookback_coverage": {
+      "all_snapshots_complete": true,
+      "available_days_by_snapshot": {
+        "2011-01-01": 396,
+        "2011-02-01": 427,
+        "2011-03-01": 455,
+        "2011-04-01": 486,
+        "2011-06-01": 547
+      },
+      "minimum_available_days": 396,
+      "required_days": 365
+    },
     "missing_customer_rows_excluded": 243007,
     "other_invalid_rows_excluded": 12069,
-    "snapshot_fingerprint": "5264e8bd761b9991",
-    "snapshot_rows": 19760,
+    "snapshot_fingerprint": "4357171d0faf1887",
+    "snapshot_rows": 22941,
     "source_rows": 1067371,
     "synthetic": false,
     "usable_transaction_rows": 812295
   },
   "decision_evidence": {
-    "baseline_top_10_value_capture": 0.6062133464348771,
-    "baseline_top_20_value_capture": 0.7263985639793951,
-    "model_top_10_value_capture": 0.6189018821865296,
-    "model_top_20_value_capture": 0.7486501886976819
+    "baseline_top_10_value_capture": 0.6090884873736625,
+    "baseline_top_20_value_capture": 0.7307227700153334,
+    "model_top_10_value_capture": 0.6269252284209602,
+    "model_top_20_value_capture": 0.7582419463802466
   },
   "holdout": {
     "baseline": {
-      "mae": 545.3911186866885,
-      "rmse": 2769.185622663602,
-      "spearman": 0.5566230831081831,
-      "top_10_value_capture": 0.6062133464348771,
-      "top_20_value_capture": 0.7263985639793951,
-      "wape": 0.6622473251062917
+      "mae": 538.6759528053799,
+      "rmse": 2733.993911161528,
+      "spearman": 0.5463409385272688,
+      "top_10_value_capture": 0.6090884873736625,
+      "top_20_value_capture": 0.7307227700153334,
+      "wape": 0.652673192643451
     },
     "model": {
-      "activity_average_precision": 0.8140289980437642,
-      "activity_brier_score": 0.18857979897848104,
-      "interval_80_coverage": 0.8779647273464424,
-      "interval_80_raw_coverage": 0.8779647273464424,
-      "interval_mean_width": 1374.7290432025313,
-      "interval_raw_mean_width": 1374.7290432025313,
-      "mae": 567.3235639141517,
-      "rmse": 3360.3241034764683,
-      "spearman": 0.5976570906592972,
-      "top_10_value_capture": 0.6189018821865296,
-      "top_20_value_capture": 0.7486501886976819,
-      "wape": 0.6888790444124357
+      "activity_average_precision": 0.8365813673941866,
+      "activity_brier_score": 0.1861848602391537,
+      "aggregate_prediction_to_actual_ratio": 0.6445717768535751,
+      "interval_80_coverage": 0.8007297790391242,
+      "interval_80_raw_coverage": 0.8007297790391242,
+      "interval_mean_width": 1074.3632262742713,
+      "interval_raw_mean_width": 1074.3632262742713,
+      "mae": 554.3583291791508,
+      "negative_prediction_rate": 0.0010135819987837015,
+      "negative_realized_value_rate": 0.006689641191972431,
+      "rmse": 2835.9461869699285,
+      "spearman": 0.6107962509727429,
+      "top_10_value_capture": 0.6269252284209602,
+      "top_20_value_capture": 0.7582419463802466,
+      "wape": 0.6716743502091449
     }
   },
   "interval_calibration": {
-    "calibrated_coverage": 0.9389464403791051,
-    "calibration_rows": 4537,
+    "calibrated_coverage": 0.8683206106870229,
+    "calibration_rows": 4716,
     "correction": 0.0,
-    "raw_coverage": 0.9389464403791051,
+    "raw_coverage": 0.8683206106870229,
     "target_coverage": 0.8
   },
   "model_selection": {
@@ -64,25 +117,25 @@
         "learning_rate": 0.05,
         "max_leaf_nodes": 15,
         "min_samples_leaf": 35,
-        "selection_wape": 0.9919105183945274
+        "selection_wape": 0.6797320680946677
       },
       {
         "learning_rate": 0.035,
         "max_leaf_nodes": 31,
         "min_samples_leaf": 55,
-        "selection_wape": 1.035777185297307
+        "selection_wape": 0.7054013728872363
       },
       {
         "learning_rate": 0.07,
         "max_leaf_nodes": 9,
         "min_samples_leaf": 25,
-        "selection_wape": 0.9937375018785842
+        "selection_wape": 0.663651796253604
       }
     ],
     "selected_parameters": {
-      "learning_rate": 0.05,
-      "max_leaf_nodes": 15,
-      "min_samples_leaf": 35
+      "learning_rate": 0.07,
+      "max_leaf_nodes": 9,
+      "min_samples_leaf": 25
     }
   },
   "publication_guardrail": {
@@ -92,15 +145,15 @@
       "causal uplift"
     ],
     "row_level_customer_output_committed": false,
-    "target": "180-day net revenue"
+    "target": "signed 180-day net revenue"
   },
   "split": {
-    "calibration_rows": 4537,
-    "calibration_snapshot": "2011-03-01",
-    "selection_rows": 4266,
-    "selection_snapshot": "2010-12-01",
+    "calibration_rows": 4716,
+    "calibration_snapshot": "2011-04-01",
+    "selection_rows": 4537,
+    "selection_snapshot": "2011-03-01",
     "test_rows": 4933,
     "test_snapshot": "2011-06-01",
-    "train_rows": 6024
+    "train_rows": 8755
   }
 }

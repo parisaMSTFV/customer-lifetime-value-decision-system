@@ -39,7 +39,7 @@ aggregates AS (
             'day',
             CAST(customers.first_purchase_date AS DATE),
             CAST(parameters.snapshot_date AS DATE)
-        ) AS tenure_days,
+        ) AS observed_tenure_days,
         COALESCE(
             MIN(history.age_days) FILTER (
                 WHERE NOT history.is_cancellation AND history.signed_revenue > 0
@@ -58,18 +58,12 @@ aggregates AS (
         COUNT(DISTINCT history.invoice_id) FILTER (
             WHERE NOT history.is_cancellation AND history.signed_revenue > 0 AND history.age_days <= 365
         ) AS orders_365d,
-        GREATEST(COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 90), 0), 0) AS net_revenue_90d,
-        GREATEST(
-            COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days > 90 AND history.age_days <= 180), 0),
-            0
-        ) AS net_revenue_previous_90d,
-        GREATEST(COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 180), 0), 0) AS net_revenue_180d,
-        GREATEST(COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 365), 0), 0) AS net_revenue_365d,
+        COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 90), 0) AS net_revenue_90d,
+        COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days > 90 AND history.age_days <= 180), 0) AS net_revenue_previous_90d,
+        COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 180), 0) AS net_revenue_180d,
+        COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 365), 0) AS net_revenue_365d,
         COALESCE(
-            GREATEST(
-                COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 365), 0),
-                0
-            )
+            COALESCE(SUM(history.signed_revenue) FILTER (WHERE history.age_days <= 365), 0)
             / NULLIF(
                 COUNT(DISTINCT history.invoice_id) FILTER (
                     WHERE NOT history.is_cancellation AND history.signed_revenue > 0 AND history.age_days <= 365
@@ -108,6 +102,8 @@ aggregates AS (
 )
 SELECT
     *,
-    (net_revenue_90d + 1.0) / (net_revenue_previous_90d + 1.0) AS revenue_momentum_90d,
+    (net_revenue_90d - net_revenue_previous_90d)
+        / (ABS(net_revenue_90d) + ABS(net_revenue_previous_90d) + 1.0)
+        AS revenue_momentum_90d,
     COALESCE(orders_90d / NULLIF(orders_365d, 0), 0) AS recent_order_share
 FROM aggregates;

@@ -127,10 +127,7 @@ def generate_orders(
                 margin_rate = float(np.clip(spec.margin_rate + margin_noise, 0.14, 0.42))
                 fulfillment_cost = 4.0 + 0.025 * net_revenue
                 return_cost = 0.42 * net_revenue + 3.5 if returned else 0.0
-                contribution_margin = max(
-                    0.5,
-                    net_revenue * margin_rate - fulfillment_cost - return_cost,
-                )
+                contribution_margin = net_revenue * margin_rate - fulfillment_cost - return_cost
                 records.append(
                     {
                         "order_id": f"O{order_number:07d}",

@@ -111,6 +111,16 @@ def run_pipeline(
     test_predictions = predict(bundle, test, interval_calibration)
     baseline = baseline_prediction(test)
     evaluations = full_evaluation(test, test_predictions, baseline)
+    realized = test["future_discounted_margin_180d"]
+    realized_total = float(realized.sum())
+    predicted_total = float(test_predictions["predicted_clv_180d"].sum())
+    evaluations["model"]["aggregate_prediction_to_actual_ratio"] = (
+        predicted_total / realized_total if realized_total else 0.0
+    )
+    evaluations["model"]["negative_prediction_rate"] = float(
+        (test_predictions["predicted_clv_180d"] < 0).mean()
+    )
+    evaluations["model"]["negative_realized_value_rate"] = float((realized < 0).mean())
     importance = permutation_wape_importance(bundle, test, FEATURES, config["seed"])
 
     raw_interval_predictions = test_predictions.copy()
@@ -205,7 +215,7 @@ def run_pipeline(
     )
     model_metadata = {
         "model_type": "two-part histogram gradient boosting",
-        "target": "180-day discounted contribution margin",
+        "target": "signed 180-day discounted contribution margin",
         "features": FEATURES,
         "selected_parameters": selected_parameters,
         "interval_calibration": interval_calibration_metrics,

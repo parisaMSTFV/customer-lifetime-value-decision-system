@@ -35,7 +35,22 @@ class ConfigTests(unittest.TestCase):
             "calibration_snapshot": "2024-01-01",
             "test_snapshot": "2024-07-01",
             "interval_target_coverage": 0.8,
-            "policy": {},
+            "policy": {
+                "tier_shares": {
+                    "protect": 0.10,
+                    "grow": 0.20,
+                    "nurture": 0.40,
+                    "low_touch": 0.30,
+                },
+                "investment_fraction": 0.08,
+                "tier_caps": {
+                    "protect": 24.0,
+                    "grow": 14.0,
+                    "nurture": 7.0,
+                    "low_touch": 2.0,
+                },
+                "uncertainty_ratio": 1.25,
+            },
         }
 
     def _write_config(self, config: dict[str, object]) -> Path:
@@ -57,7 +72,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_rejects_too_few_customers(self) -> None:
         invalid = {**self.valid_config, "n_customers": 49}
-        with self.assertRaisesRegex(ValueError, "at least 50"):
+        with self.assertRaisesRegex(ValueError, "greater than or equal to 50"):
             load_config(self._write_config(invalid))
 
     def test_rejects_misordered_temporal_snapshots(self) -> None:
@@ -73,6 +88,45 @@ class ConfigTests(unittest.TestCase):
         invalid = {**self.valid_config, "interval_target_coverage": 1.0}
         with self.assertRaisesRegex(ValueError, "strictly between"):
             load_config(self._write_config(invalid))
+
+    def test_rejects_non_positive_horizon(self) -> None:
+        invalid = {**self.valid_config, "horizon_days": -5}
+        with self.assertRaisesRegex(ValueError, "horizon_days"):
+            load_config(self._write_config(invalid))
+
+    def test_rejects_incomplete_synthetic_lookback(self) -> None:
+        invalid = {**self.valid_config, "data_start": "2022-06-01"}
+        with self.assertRaisesRegex(ValueError, "complete first-snapshot lookback"):
+            load_config(self._write_config(invalid))
+
+    def test_rejects_invalid_policy_boundaries(self) -> None:
+        cases = {
+            "negative investment": {
+                **self.valid_config["policy"],
+                "investment_fraction": -0.1,
+            },
+            "shares do not sum": {
+                **self.valid_config["policy"],
+                "tier_shares": {
+                    "protect": 0.10,
+                    "grow": 0.20,
+                    "nurture": 0.40,
+                    "low_touch": 0.20,
+                },
+            },
+            "negative cap": {
+                **self.valid_config["policy"],
+                "tier_caps": {
+                    "protect": -1.0,
+                    "grow": 14.0,
+                    "nurture": 7.0,
+                    "low_touch": 2.0,
+                },
+            },
+        }
+        for name, policy in cases.items():
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                load_config(self._write_config({**self.valid_config, "policy": policy}))
 
     def test_temporal_split_keeps_calibration_before_test(self) -> None:
         snapshots = pd.DataFrame(
@@ -93,6 +147,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_public_config_is_validated_independently(self) -> None:
         public_config = {
+            "bootstrap_iterations": 500,
             "seed": 42,
             "snapshot_dates": ["2020-01-01", "2020-04-01", "2020-07-01", "2020-10-01"],
             "lookback_days": 365,
@@ -104,6 +159,21 @@ class ConfigTests(unittest.TestCase):
         }
         result = load_public_validation_config(self._write_config(public_config))
         self.assertEqual(result["horizon_days"], 180)
+
+    def test_public_config_requires_sufficient_bootstrap_iterations(self) -> None:
+        public_config = {
+            "bootstrap_iterations": 199,
+            "seed": 42,
+            "snapshot_dates": ["2020-01-01", "2020-04-01", "2020-07-01", "2020-10-01"],
+            "lookback_days": 365,
+            "horizon_days": 180,
+            "selection_snapshot": "2020-04-01",
+            "calibration_snapshot": "2020-07-01",
+            "test_snapshot": "2020-10-01",
+            "interval_target_coverage": 0.8,
+        }
+        with self.assertRaisesRegex(ValueError, "bootstrap_iterations"):
+            load_public_validation_config(self._write_config(public_config))
 
 
 if __name__ == "__main__":

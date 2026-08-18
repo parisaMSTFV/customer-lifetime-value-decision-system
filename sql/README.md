@@ -17,8 +17,9 @@ The repository executes two independent SQL paths:
 
 The scoring date is midnight at the start of the named day. Transactions on that day
 belong to the future label, never to the feature window. Cancellations remain negative
-signed revenue. Customer-level future net revenue is floored at zero because the
-two-part model requires a non-negative outcome; this rule is reported as a limitation.
+signed revenue in historical features and the future target. Future activity is a
+separate label based on any value-bearing future transaction, so the target is exactly
+zero when activity is absent and can be negative when returns exceed purchases.
 
 ## Run
 

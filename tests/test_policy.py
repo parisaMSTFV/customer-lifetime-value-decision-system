@@ -46,6 +46,21 @@ class PolicyTests(unittest.TestCase):
         caps = result["service_tier"].map(POLICY["tier_caps"])
         self.assertTrue((result["investment_ceiling"] <= caps).all())
 
+    def test_small_population_uses_every_configured_share(self) -> None:
+        predictions = self.predictions.head(7)
+        policy = {
+            **POLICY,
+            "tier_shares": {
+                "protect": 0.10,
+                "grow": 0.20,
+                "nurture": 0.30,
+                "low_touch": 0.40,
+            },
+        }
+        result = apply_policy(predictions, policy)
+        counts = result["service_tier"].value_counts()
+        self.assertEqual(counts.to_dict(), {"low_touch": 3, "nurture": 2, "protect": 1, "grow": 1})
+
     def test_policy_summary_shares_sum_to_one(self) -> None:
         decisions = apply_policy(self.predictions, POLICY)
         scored = decisions.assign(

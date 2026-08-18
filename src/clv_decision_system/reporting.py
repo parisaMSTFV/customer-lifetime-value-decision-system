@@ -245,6 +245,10 @@ def write_executive_summary(
         "currency units.",
         f"- The Protect tier contains **{protect['customer_share']:.1%}** of customers "
         f"and **{protect['realized_value_share']:.1%}** of realized holdout value.",
+        "- Aggregate predicted value is "
+        f"**{model['aggregate_prediction_to_actual_ratio']:.1%}** of realized value; "
+        f"**{model['negative_realized_value_rate']:.1%}** of customers have negative "
+        "realized signed margin.",
         "",
         "## How to use the output",
         "",

@@ -18,6 +18,81 @@ def top_fraction_capture(actual: np.ndarray, score: np.ndarray, fraction: float)
     return float(actual[selected].sum() / denominator) if denominator else 0.0
 
 
+def _rank_correlation(actual: np.ndarray, score: np.ndarray) -> float:
+    if np.ptp(actual) == 0.0 or np.ptp(score) == 0.0:
+        return 0.0
+    statistic = spearmanr(actual, score).statistic
+    return float(0.0 if np.isnan(statistic) else statistic)
+
+
+def paired_bootstrap_comparison(
+    actual: np.ndarray,
+    model_score: np.ndarray,
+    baseline_score: np.ndarray,
+    iterations: int,
+    seed: int,
+    confidence: float = 0.95,
+) -> dict[str, dict[str, float | str]]:
+    """Estimate paired metric differences without exposing resampled rows."""
+    arrays = [np.asarray(values, dtype=float) for values in (actual, model_score, baseline_score)]
+    if not arrays[0].size or any(values.shape != arrays[0].shape for values in arrays[1:]):
+        raise ValueError("Bootstrap inputs must be non-empty arrays with identical shapes")
+    if not all(np.isfinite(values).all() for values in arrays):
+        raise ValueError("Bootstrap inputs must contain only finite values")
+    if iterations < 1:
+        raise ValueError("Bootstrap iterations must be positive")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("Bootstrap confidence must be strictly between zero and one")
+
+    actual_values, model_values, baseline_values = arrays
+
+    def differences(
+        outcomes: np.ndarray,
+        model: np.ndarray,
+        baseline: np.ndarray,
+    ) -> dict[str, float]:
+        return {
+            "wape_difference": wape(outcomes, model) - wape(outcomes, baseline),
+            "spearman_difference": _rank_correlation(outcomes, model)
+            - _rank_correlation(outcomes, baseline),
+            "top_10_capture_difference": top_fraction_capture(outcomes, model, 0.10)
+            - top_fraction_capture(outcomes, baseline, 0.10),
+            "top_20_capture_difference": top_fraction_capture(outcomes, model, 0.20)
+            - top_fraction_capture(outcomes, baseline, 0.20),
+        }
+
+    estimates = differences(actual_values, model_values, baseline_values)
+    samples = {name: np.empty(iterations, dtype=float) for name in estimates}
+    rng = np.random.default_rng(seed)
+    rows = len(actual_values)
+    for iteration in range(iterations):
+        indices = rng.integers(0, rows, size=rows)
+        values = differences(
+            actual_values[indices],
+            model_values[indices],
+            baseline_values[indices],
+        )
+        for name, value in values.items():
+            samples[name][iteration] = value
+
+    alpha = (1.0 - confidence) / 2.0
+    result: dict[str, dict[str, float | str]] = {}
+    for name, estimate in estimates.items():
+        lower_is_better = name == "wape_difference"
+        draws = samples[name]
+        result[name] = {
+            "estimate": float(estimate),
+            "ci_lower": float(np.quantile(draws, alpha)),
+            "ci_upper": float(np.quantile(draws, 1.0 - alpha)),
+            "confidence": confidence,
+            "probability_model_better": float(
+                np.mean(draws < 0.0) if lower_is_better else np.mean(draws > 0.0)
+            ),
+            "favorable_direction": "negative" if lower_is_better else "positive",
+        }
+    return result
+
+
 def regression_metrics(
     actual: np.ndarray,
     predicted: np.ndarray,
@@ -25,12 +100,11 @@ def regression_metrics(
     upper: np.ndarray | None = None,
 ) -> dict[str, float]:
     """Calculate scale, ranking, and optional interval metrics."""
-    rank_correlation = spearmanr(actual, predicted).statistic
     metrics = {
         "mae": float(mean_absolute_error(actual, predicted)),
         "wape": wape(actual, predicted),
         "rmse": float(np.sqrt(np.mean((actual - predicted) ** 2))),
-        "spearman": float(0.0 if np.isnan(rank_correlation) else rank_correlation),
+        "spearman": _rank_correlation(actual, predicted),
         "top_10_value_capture": top_fraction_capture(actual, predicted, 0.10),
         "top_20_value_capture": top_fraction_capture(actual, predicted, 0.20),
     }
