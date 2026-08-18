@@ -135,6 +135,10 @@ def write_public_summary(metrics: dict[str, Any], path: Path) -> None:
     baseline = metrics["holdout"]["baseline"]
     interval = metrics["interval_calibration"]
     conditional = metrics["conditional_interval"]
+    bootstrap = metrics["bootstrap_comparison"]["metrics"]
+    top_10_bootstrap = bootstrap["top_10_capture_difference"]
+    top_20_bootstrap = bootstrap["top_20_capture_difference"]
+    wape_bootstrap = bootstrap["wape_difference"]
     difference = 1 - model["wape"] / baseline["wape"]
     comparison = (
         f"{abs(difference):.1%} lower" if difference >= 0 else f"{abs(difference):.1%} higher"
@@ -145,7 +149,7 @@ def write_public_summary(metrics: dict[str, Any], path: Path) -> None:
         "## Scope",
         "",
         "This report tests customer-value ranking on licensed UCI Online Retail II "
-        "transactions. The target is 180-day net revenue, not contribution margin, "
+        "transactions. The target is signed 180-day net revenue, not contribution margin, "
         "profit, causal uplift, or unlimited lifetime value.",
         "",
         "## Untouched June 2011 snapshot",
@@ -156,9 +160,22 @@ def write_public_summary(metrics: dict[str, Any], path: Path) -> None:
         f"- Spearman rank correlation: **{model['spearman']:.3f}**; baseline: "
         f"**{baseline['spearman']:.3f}**.",
         f"- Top 10% realized value capture: **{model['top_10_value_capture']:.1%}**; "
-        f"baseline: **{baseline['top_10_value_capture']:.1%}**.",
+        f"baseline: **{baseline['top_10_value_capture']:.1%}**. Paired-bootstrap "
+        f"difference: **{top_10_bootstrap['estimate'] * 100:+.1f} percentage points** "
+        f"(95% CI **{top_10_bootstrap['ci_lower'] * 100:+.1f} to "
+        f"{top_10_bootstrap['ci_upper'] * 100:+.1f} points**).",
         f"- Top 20% realized value capture: **{model['top_20_value_capture']:.1%}**; "
-        f"baseline: **{baseline['top_20_value_capture']:.1%}**.",
+        f"baseline: **{baseline['top_20_value_capture']:.1%}**. Paired-bootstrap "
+        f"difference: **{top_20_bootstrap['estimate'] * 100:+.1f} percentage points** "
+        f"(95% CI **{top_20_bootstrap['ci_lower'] * 100:+.1f} to "
+        f"{top_20_bootstrap['ci_upper'] * 100:+.1f} points**).",
+        f"- Paired-bootstrap WAPE difference (model minus baseline): "
+        f"**{wape_bootstrap['estimate']:+.3f}** "
+        f"(95% CI **{wape_bootstrap['ci_lower']:+.3f} to "
+        f"{wape_bootstrap['ci_upper']:+.3f}**).",
+        f"- Aggregate predicted-to-realized value ratio: "
+        f"**{model['aggregate_prediction_to_actual_ratio']:.1%}**; signed returns are "
+        "retained rather than floored to zero.",
         f"- Raw nominal 80% interval coverage: **{model['interval_80_raw_coverage']:.1%}**; "
         f"split-conformal coverage: **{model['interval_80_coverage']:.1%}**.",
         f"- The conformal correction was **£{interval['correction']:.2f}**, fitted on "
@@ -179,6 +196,8 @@ def write_public_summary(metrics: dict[str, Any], path: Path) -> None:
         "wholesale customer base.",
         "- Revenue is heavy-tailed, and prediction error must be read together with ranking "
         "and capacity metrics.",
+        "- Bootstrap intervals quantify sampling uncertainty in this holdout; they do not "
+        "cover temporal, retailer, or policy-transfer uncertainty.",
         "- Marginal interval calibration does not guarantee equal coverage by value decile, "
         "country, or future period.",
         "- Historical value prediction does not identify a causal CRM treatment effect.",

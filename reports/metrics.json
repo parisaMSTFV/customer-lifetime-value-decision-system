@@ -1,50 +1,53 @@
 {
   "data": {
     "customers": 1400,
-    "fingerprint": "b24f3c2d959f40ea",
+    "fingerprint": "7feb745524f4f82b",
     "orders": 51327,
     "snapshot_rows": 5600,
     "synthetic": true
   },
   "decision_evidence": {
     "protect_tier_customer_share": 0.1,
-    "protect_tier_realized_value_share": 0.24190553377490726,
-    "relative_wape_reduction_vs_baseline": 0.28751675710425684
+    "protect_tier_realized_value_share": 0.24670990459256384,
+    "relative_wape_reduction_vs_baseline": 0.1636195694137269
   },
   "holdout": {
     "baseline": {
-      "mae": 45.66906742178987,
-      "rmse": 68.93531167036261,
-      "spearman": 0.7363958919784459,
-      "top_10_value_capture": 0.22424626893327204,
-      "top_20_value_capture": 0.401573613039674,
-      "wape": 0.5915642210673886
+      "mae": 43.47819242118272,
+      "rmse": 64.9429308712563,
+      "spearman": 0.7181963673264964,
+      "top_10_value_capture": 0.23212029035660028,
+      "top_20_value_capture": 0.41057808465240764,
+      "wape": 0.5977013311613388
     },
     "model": {
-      "activity_average_precision": 0.9771717418264652,
-      "activity_brier_score": 0.0815135096310593,
-      "interval_80_coverage": 0.8142857142857143,
-      "interval_80_raw_coverage": 0.7135714285714285,
-      "interval_mean_width": 104.6962875838265,
-      "interval_raw_mean_width": 98.40005885242385,
-      "mae": 32.53844525670118,
-      "rmse": 46.89884966634642,
-      "spearman": 0.8083806783301831,
-      "top_10_value_capture": 0.2419055337749072,
-      "top_20_value_capture": 0.43324113741872483,
-      "wape": 0.4214795946071873
+      "activity_average_precision": 0.9779934572992941,
+      "activity_brier_score": 0.07851462959944203,
+      "aggregate_prediction_to_actual_ratio": 1.1742192374966034,
+      "interval_80_coverage": 0.8257142857142857,
+      "interval_80_raw_coverage": 0.75,
+      "interval_mean_width": 111.0470206200973,
+      "interval_raw_mean_width": 102.27250163039332,
+      "mae": 36.36430929834163,
+      "negative_prediction_rate": 0.0,
+      "negative_realized_value_rate": 0.04071428571428572,
+      "rmse": 50.83799742527051,
+      "spearman": 0.7877874584002573,
+      "top_10_value_capture": 0.2467099045925639,
+      "top_20_value_capture": 0.4296043141336607,
+      "wape": 0.49990569671870916
     }
   },
   "interval_calibration": {
     "calibrated_coverage": 0.8014285714285714,
-    "calibrated_high_uncertainty_rate": 0.7007142857142857,
-    "calibrated_total_investment_ceiling": 3905.8505607820075,
+    "calibrated_high_uncertainty_rate": 0.7021428571428572,
+    "calibrated_total_investment_ceiling": 3372.340896045975,
     "calibration_rows": 1400,
-    "correction": 3.4842195679753085,
-    "customers_newly_flagged_high_uncertainty": 39,
-    "raw_coverage": 0.7171428571428572,
-    "raw_high_uncertainty_rate": 0.6728571428571428,
-    "raw_total_investment_ceiling": 4220.795587085873,
+    "correction": 4.387259494851982,
+    "customers_newly_flagged_high_uncertainty": 66,
+    "raw_coverage": 0.735,
+    "raw_high_uncertainty_rate": 0.655,
+    "raw_total_investment_ceiling": 3712.0662539276514,
     "target_coverage": 0.8
   },
   "model_selection": {
@@ -53,25 +56,25 @@
         "learning_rate": 0.06,
         "max_leaf_nodes": 15,
         "min_samples_leaf": 25,
-        "validation_wape": 0.4598992160253441
+        "validation_wape": 0.5179867729519431
       },
       {
         "learning_rate": 0.045,
         "max_leaf_nodes": 31,
         "min_samples_leaf": 35,
-        "validation_wape": 0.46297962113939417
+        "validation_wape": 0.5134164764130127
       },
       {
         "learning_rate": 0.08,
         "max_leaf_nodes": 9,
         "min_samples_leaf": 20,
-        "validation_wape": 0.46097523995441436
+        "validation_wape": 0.510482721026543
       }
     ],
     "selected_parameters": {
-      "learning_rate": 0.06,
-      "max_leaf_nodes": 15,
-      "min_samples_leaf": 25
+      "learning_rate": 0.08,
+      "max_leaf_nodes": 9,
+      "min_samples_leaf": 20
     }
   },
   "split": {

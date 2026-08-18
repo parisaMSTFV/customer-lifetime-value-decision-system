@@ -31,21 +31,22 @@
 
 | Metric | Model | Baseline |
 |---|---:|---:|
-| WAPE | 0.421 | 0.592 |
-| MAE | 32.54 | 45.67 |
-| RMSE | 46.90 | 68.94 |
-| Spearman | 0.808 | 0.736 |
-| Top 10% value capture | 24.2% | 22.4% |
-| Top 20% value capture | 43.3% | 40.2% |
+| WAPE | 0.500 | 0.598 |
+| MAE | 36.36 | 43.48 |
+| RMSE | 50.84 | 64.94 |
+| Spearman | 0.788 | 0.718 |
+| Top 10% value capture | 24.7% | 23.2% |
+| Top 20% value capture | 43.0% | 41.1% |
 
 Additional model diagnostics:
 
-- Activity average precision: 0.977.
-- Activity Brier score: 0.082.
-- Raw nominal 80% interval coverage: 71.4%; mean width: 98.40.
-- Split-conformal 80% interval coverage: 81.4%; mean width: 104.70.
-- Protect-tier and highest-decile calibrated coverage: 74.3%; marginal calibration does not guarantee equal conditional coverage.
-- Calibration increased the high-uncertainty flag rate from 67.3% to 70.1% and reduced the aggregate investment ceiling from 4,220.8 to 3,905.9 synthetic currency units.
+- Activity average precision: 0.978.
+- Activity Brier score: 0.079.
+- Raw nominal 80% interval coverage: 75.0%; mean width: 102.27.
+- Split-conformal 80% interval coverage: 82.6%; mean width: 111.05.
+- Protect-tier and highest-decile calibrated coverage: 80.0%; the minimum decile is 75.7%, so marginal calibration does not guarantee equal conditional coverage.
+- Aggregate predicted value is 117.4% of aggregate realized value; 4.1% of customers have negative realized signed margin.
+- Calibration increased the high-uncertainty flag rate from 65.5% to 70.2% and reduced the aggregate investment ceiling from 3,712.1 to 3,372.3 synthetic currency units.
 
 ## Important drivers
 
@@ -55,7 +56,7 @@ The project reports permutation importance as the increase in holdout WAPE when 
 
 ## Risks and monitoring
 
-- **Calibration drift:** track raw and calibrated interval coverage and activity Brier score by scoring month.
+- **Calibration drift:** track aggregate value calibration, raw and calibrated interval coverage, and activity Brier score by scoring month.
 - **Conditional undercoverage:** review coverage by value decile and service tier; the committed Protect-tier result remains below target.
 - **Ranking drift:** compare top-decile realized value capture with the baseline.
 - **Data drift:** monitor recency, order frequency, margin, return, and acquisition-channel distributions.
@@ -73,25 +74,28 @@ synthetic policy.
 |---|---|
 | Data | UCI Online Retail II, CC BY 4.0 |
 | Unit | Customer at a temporal snapshot |
-| Target | Next 180-day net revenue, floored at zero |
+| Target | Signed net revenue over the next 180 days |
 | Test | Untouched 2011-06-01 snapshot, 4,933 customers |
 | Safe decision use | Relative ranking and fixed-capacity review evidence |
 | Not supported | Profit, spend ceilings, causal treatment choice, production accuracy |
 
 | Public holdout metric | Model | Baseline |
 |---|---:|---:|
-| WAPE | 0.689 | **0.662** |
-| MAE | 567.32 | **545.39** |
-| RMSE | 3,360.32 | **2,769.19** |
-| Spearman | **0.598** | 0.557 |
-| Top 10% value capture | **61.9%** | 60.6% |
-| Top 20% value capture | **74.9%** | 72.6% |
+| WAPE | 0.672 | **0.653** |
+| MAE | 554.36 | **538.68** |
+| RMSE | 2,835.95 | **2,733.99** |
+| Spearman | **0.611** | 0.546 |
+| Top 10% value capture | **62.7%** | 60.9% |
+| Top 20% value capture | **75.8%** | 73.1% |
 
 The model does not beat the fixed baseline on point error. It is retained because model
 selection was completed before the final test and because it provides stronger ranking
-evidence; the negative result remains visible. Raw and calibrated interval coverage are
-both 87.8%, with a £0 conformal correction because the calibration snapshot already
-exceeded the nominal target. Highest-decile coverage is only 75.9%.
+evidence; the negative result remains visible. Paired-bootstrap 95% intervals are
++0.5 to +3.0 percentage points for top-10 capture and +1.3 to +4.3 points for top-20
+capture. Raw and calibrated interval coverage are both 80.1%, with a £0 conformal
+correction because the calibration snapshot already exceeded the nominal target.
+Highest-decile coverage is 65.8%, and aggregate predicted value is only 64.5% of
+aggregate realized value.
 
 Public raw data, canonical transactions, snapshots, and customer-level scores remain
 gitignored. Aggregate evidence is in

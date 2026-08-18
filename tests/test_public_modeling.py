@@ -52,11 +52,26 @@ class PublicModelingTests(unittest.TestCase):
             seed=33,
         )
 
-    def test_public_predictions_are_non_negative_and_ordered(self) -> None:
+    def test_public_predictions_are_finite_and_ordered(self) -> None:
         result = predict_public(self.bundle, self.frame.head(30))
-        self.assertTrue((result["predicted_revenue_180d"] >= 0).all())
+        self.assertTrue(np.isfinite(result.select_dtypes(include="number")).all().all())
         self.assertTrue((result["revenue_lower_80"] <= result["predicted_revenue_180d"]).all())
         self.assertTrue((result["predicted_revenue_180d"] <= result["revenue_upper_80"]).all())
+
+    def test_public_model_can_represent_negative_conditional_value(self) -> None:
+        frame = self.frame.copy()
+        frame[PUBLIC_TARGET_COLUMN] = np.where(
+            frame[PUBLIC_ACTIVE_COLUMN] == 1,
+            -15.0 - frame["net_revenue_180d"],
+            0.0,
+        )
+        bundle = fit_public_model(
+            frame,
+            {"max_leaf_nodes": 9, "learning_rate": 0.07, "min_samples_leaf": 15},
+            seed=33,
+        )
+        result = predict_public(bundle, frame.head(30))
+        self.assertTrue((result["predicted_revenue_180d"] < 0).all())
 
     def test_public_conformal_calibration_reaches_snapshot_target(self) -> None:
         calibration_frame = self.frame.iloc[:80].copy()

@@ -81,7 +81,7 @@ def _fit_point_models(
     if active_mask.sum() < 2:
         raise ValueError("Public development data has too few active outcomes")
     conditional = HistGradientBoostingRegressor(loss="squared_error", **common)
-    conditional.fit(transformed[active_mask], np.log1p(target.to_numpy()[active_mask]))
+    conditional.fit(transformed[active_mask], target.to_numpy()[active_mask])
     return classifier, conditional
 
 
@@ -91,8 +91,8 @@ def _point_prediction(
     transformed: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     active_probability = classifier.predict_proba(transformed)[:, 1]
-    conditional_revenue = np.expm1(conditional.predict(transformed))
-    prediction = np.clip(active_probability * conditional_revenue, 0.0, None)
+    conditional_revenue = conditional.predict(transformed)
+    prediction = active_probability * conditional_revenue
     return prediction, active_probability
 
 
@@ -173,12 +173,12 @@ def predict_public(
         bundle.conditional_regressor,
         transformed,
     )
-    raw_lower = np.clip(bundle.lower_regressor.predict(transformed), 0.0, None)
-    raw_upper = np.clip(bundle.upper_regressor.predict(transformed), 0.0, None)
+    raw_lower = bundle.lower_regressor.predict(transformed)
+    raw_upper = bundle.upper_regressor.predict(transformed)
     raw_lower = np.minimum(raw_lower, point)
     raw_upper = np.maximum(raw_upper, point)
     correction = 0.0 if interval_calibration is None else interval_calibration.correction
-    lower = np.minimum(np.clip(raw_lower - correction, 0.0, None), point)
+    lower = np.minimum(raw_lower - correction, point)
     upper = np.maximum(raw_upper + correction, point)
     return pd.DataFrame(
         {
@@ -209,7 +209,7 @@ def calibrate_public_intervals(
     rows = len(scores)
     finite_quantile = min(1.0, np.ceil((rows + 1) * target_coverage) / rows)
     correction = max(0.0, float(np.quantile(scores, finite_quantile, method="higher")))
-    calibrated_lower = np.clip(raw_lower - correction, 0.0, None)
+    calibrated_lower = raw_lower - correction
     calibrated_upper = raw_upper + correction
     return IntervalCalibration(
         target_coverage=target_coverage,
@@ -225,17 +225,14 @@ def calibrate_public_intervals(
 def public_revenue_baseline(frame: pd.DataFrame) -> np.ndarray:
     """Recency-adjusted trailing-net-revenue baseline fixed before test evaluation."""
     recency_weight = np.exp(-frame["recency_days"].to_numpy() / 220.0)
-    momentum = np.clip(
-        (frame["net_revenue_90d"].to_numpy() + 1.0)
-        / (frame["net_revenue_previous_90d"].to_numpy() + 1.0),
+    recent = frame["net_revenue_90d"].to_numpy()
+    previous = frame["net_revenue_previous_90d"].to_numpy()
+    normalized_change = np.clip(
+        (recent - previous) / (np.abs(recent) + np.abs(previous) + 1.0),
+        -0.5,
         0.5,
-        1.5,
     )
-    return np.clip(
-        frame["net_revenue_180d"].to_numpy() * recency_weight * momentum,
-        0.0,
-        None,
-    )
+    return frame["net_revenue_180d"].to_numpy() * recency_weight * (1.0 + normalized_change)
 
 
 def public_permutation_importance(

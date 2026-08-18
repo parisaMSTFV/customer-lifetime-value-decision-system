@@ -22,13 +22,17 @@ from clv_decision_system.public_features import (  # noqa: E402, I001
 
 def transaction_fixture() -> pd.DataFrame:
     rows = [
+        ("A0", "P0", 1, "2019-01-01 10:00", 10.0, "1", "UK", False, 10.0),
         ("A1", "P1", 2, "2020-01-01 10:00", 10.0, "1", "UK", False, 20.0),
         ("A2", "P2", 1, "2020-03-15 10:00", 30.0, "1", "UK", False, 30.0),
         ("C3", "P2", -1, "2020-03-20 10:00", 5.0, "1", "UK", True, -5.0),
         ("A4", "P3", 1, "2020-04-01 00:00", 40.0, "1", "UK", False, 40.0),
         ("A5", "P4", 1, "2020-05-01 10:00", 50.0, "1", "UK", False, 50.0),
+        ("C5", "P4", -2, "2020-05-15 10:00", 50.0, "1", "UK", True, -100.0),
         ("B1", "P1", 1, "2020-02-01 10:00", 15.0, "2", "France", False, 15.0),
         ("B2", "P2", 1, "2020-06-01 10:00", 20.0, "2", "France", False, 20.0),
+        ("D1", "P1", 1, "2020-02-15 10:00", 10.0, "3", "Germany", False, 10.0),
+        ("D2", "P1", -1, "2020-04-15 10:00", 25.0, "3", "Germany", True, -25.0),
     ]
     return pd.DataFrame(
         rows,
@@ -82,7 +86,31 @@ class PublicFeatureTests(unittest.TestCase):
         customer = snapshot.loc[snapshot["customer_id"] == "1"].iloc[0]
         self.assertEqual(customer["orders_365d"], 2)
         self.assertEqual(customer["net_revenue_365d"], 45.0)
-        self.assertEqual(customer["future_net_revenue_180d"], 90.0)
+        self.assertEqual(customer["future_net_revenue_180d"], -10.0)
+        self.assertEqual(customer["future_active_180d"], 1)
+
+    def test_cancellation_only_future_is_active_and_negative(self) -> None:
+        snapshot = build_public_customer_snapshots(
+            transaction_fixture(),
+            ["2020-04-01"],
+            lookback_days=365,
+            horizon_days=90,
+            sql_directory=PROJECT_ROOT / "sql",
+        )
+        customer = snapshot.loc[snapshot["customer_id"] == "3"].iloc[0]
+        self.assertEqual(customer["future_net_revenue_180d"], -25.0)
+        self.assertEqual(customer["future_active_180d"], 1)
+
+    def test_incomplete_lookback_history_is_rejected(self) -> None:
+        incomplete = transaction_fixture().query("invoice_date >= '2020-01-01'")
+        with self.assertRaisesRegex(ValueError, "complete lookback"):
+            build_public_customer_snapshots(
+                incomplete,
+                ["2020-04-01"],
+                lookback_days=365,
+                horizon_days=90,
+                sql_directory=PROJECT_ROOT / "sql",
+            )
 
     def test_all_public_model_features_are_numeric_or_declared_country(self) -> None:
         snapshot = build_public_customer_snapshots(

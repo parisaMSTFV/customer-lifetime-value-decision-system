@@ -33,15 +33,16 @@ The final snapshot (`2024-12-31`) is untouched during model selection, interval 
 
 | Metric | CLV model | RFM value baseline | Interpretation |
 |---|---:|---:|---|
-| WAPE | **0.421** | 0.592 | 28.8% relative error reduction |
-| MAE | **32.54** | 45.67 | Lower absolute error in synthetic currency units |
-| Spearman rank correlation | **0.808** | 0.736 | Better ordering for prioritization |
-| Top 10% realized value capture | **24.2%** | 22.4% | Value concentrated within fixed capacity |
-| Top 20% realized value capture | **43.3%** | 40.2% | Ranking advantage persists at wider coverage |
-| Raw nominal 80% interval coverage | 71.4% | — | Uncalibrated quantile interval under-covers |
-| Split-conformal 80% interval coverage | **81.4%** | — | Calibrated without using the final holdout |
+| WAPE | **0.500** | 0.598 | 16.4% relative error reduction |
+| MAE | **36.36** | 43.48 | Lower absolute error in synthetic currency units |
+| Spearman rank correlation | **0.788** | 0.718 | Better ordering for prioritization |
+| Top 10% realized value capture | **24.7%** | 23.2% | Value concentrated within fixed capacity |
+| Top 20% realized value capture | **43.0%** | 41.1% | Ranking advantage persists at wider coverage |
+| Raw nominal 80% interval coverage | 75.0% | — | Uncalibrated quantile interval under-covers |
+| Split-conformal 80% interval coverage | **82.6%** | — | Calibrated without using the final holdout |
 
-The **Protect** tier contains 10% of holdout customers and 24.2% of realized holdout value.
+The **Protect** tier contains 10% of holdout customers and 24.7% of realized holdout value.
+Signed margin is preserved: 4.1% of holdout customers have negative realized value.
 
 ![Predicted and realized value by score decile](reports/figures/value_by_decile.png)
 
@@ -51,7 +52,8 @@ The **Protect** tier contains 10% of holdout customers and 24.2% of realized hol
 
 The same temporal discipline was tested outside the simulator on licensed
 [UCI Online Retail II](docs/PUBLIC_DATA_CARD.md) transactions. DuckDB constructs five
-leakage-safe customer snapshots from 812,295 usable transaction lines. The target is
+leakage-safe customer snapshots (22,941 customer-date rows) from 812,295 usable
+transaction lines. Every snapshot has a complete 365-day lookback. The target is signed
 **180-day net revenue**—not margin, profit, causal uplift, or unlimited lifetime value.
 
 The June 2011 snapshot remained untouched until model selection and interval calibration
@@ -59,15 +61,16 @@ were complete.
 
 | Metric | Two-part model | Fixed trailing-value baseline | Honest interpretation |
 |---|---:|---:|---|
-| WAPE | 0.689 | **0.662** | Baseline point error is 4.0% lower |
-| Spearman rank correlation | **0.598** | 0.557 | Model orders customers better |
-| Top 10% realized value capture | **61.9%** | 60.6% | Small model advantage at tight capacity |
-| Top 20% realized value capture | **74.9%** | 72.6% | Ranking advantage persists |
-| Raw / calibrated 80% interval coverage | 87.8% / 87.8% | — | Raw interval already exceeded target; correction was £0 |
+| WAPE | 0.672 | **0.653** | Model point error is 2.9% higher |
+| Spearman rank correlation | **0.611** | 0.546 | Difference +0.064; 95% bootstrap CI +0.047 to +0.083 |
+| Top 10% realized value capture | **62.7%** | 60.9% | Difference +1.8pp; 95% CI +0.5pp to +3.0pp |
+| Top 20% realized value capture | **75.8%** | 73.1% | Difference +2.8pp; 95% CI +1.3pp to +4.3pp |
+| Raw / calibrated 80% interval coverage | 80.1% / 80.1% | — | Raw interval met target; correction was £0 |
 
 This is deliberately a mixed result: the model does **not** beat the simple baseline on
-point accuracy, while it does improve ranking and fixed-capacity value capture. The
-baseline and negative result are retained to prevent cherry-picking.
+point accuracy, while paired bootstrap intervals support its ranking and fixed-capacity
+advantages. Aggregate predicted value is 64.5% of aggregate realized value, so the
+remaining level underprediction is disclosed rather than hidden.
 
 ![Public out-of-time value by decile](reports/public_validation/figures/value_by_decile.png)
 
@@ -90,7 +93,9 @@ flowchart LR
 
 - The generator creates lifecycle, seasonality, return, discount, and margin behavior with a fixed seed.
 - Executable SQL builds every feature using orders available on or before the snapshot date.
-- A two-part model estimates the probability of future activity and margin conditional on activity.
+- A two-part model estimates the probability of a value-bearing future transaction and
+  the original-scale signed value conditional on that activity; multiplying the two
+  yields an expected value.
 - Quantile models provide raw lower and upper bounds for the 180-day value estimate.
 - A separate 2024-06-30 snapshot fits one split-conformal correction before the final holdout is opened.
 - A fixed baseline uses trailing contribution margin, recency, and recent momentum.
@@ -99,20 +104,21 @@ See [Methodology](docs/METHODOLOGY.md) for the full design and [Model Card](docs
 
 ## Interval calibration and decision impact
 
-The raw 80% quantile interval covered 71.7% of the dedicated calibration snapshot. A
-finite-sample split-conformal correction of 3.48 synthetic currency units increased
+The raw 80% quantile interval covered 73.5% of the dedicated calibration snapshot. A
+finite-sample split-conformal correction of 4.39 synthetic currency units increased
 calibration-snapshot coverage to 80.1%. On the untouched final snapshot, coverage moved
-from 71.4% to 81.4%, while mean interval width increased from 98.4 to 104.7.
+from 75.0% to 82.6%, while mean interval width increased from 102.3 to 111.0.
 
 Calibration also changed the downstream guardrails: the high-uncertainty flag rate moved
-from 67.3% to 70.1%, and the aggregate investment ceiling decreased from 4,220.8 to
-3,905.9 synthetic currency units. This is the intended behavior of a conservative lower
+from 65.5% to 70.2%, and the aggregate investment ceiling decreased from 3,712.1 to
+3,372.3 synthetic currency units. This is the intended behavior of a conservative lower
 bound—not a claim that the policy is economically optimal.
 
 ![Raw and calibrated interval coverage](reports/figures/interval_coverage.png)
 
-Marginal coverage does not imply equal conditional coverage. The Protect tier reached
-74.3% and the highest predicted-value decile reached 74.3%, both below the 80% target.
+Marginal coverage does not imply equal conditional coverage. The Protect tier and
+highest predicted-value decile both reached 80.0%, while the minimum decile coverage was
+75.7%.
 The committed [decile](reports/interval_coverage_by_decile.csv) and
 [tier](reports/interval_coverage_by_tier.csv) diagnostics keep that remaining limitation visible.
 
@@ -121,7 +127,7 @@ The committed [decile](reports/interval_coverage_by_decile.csv) and
 The scored customer artifact contains:
 
 - `predicted_clv_180d`: expected discounted contribution margin;
-- `active_probability_180d`: probability of any purchase in the horizon;
+- `active_probability_180d`: probability of any value-bearing transaction in the horizon;
 - `clv_lower_80_raw` and `clv_upper_80_raw`: uncalibrated quantile interval;
 - `clv_lower_80` and `clv_upper_80`: split-conformal interval used by the policy;
 - `service_tier`: Protect, Grow, Nurture, or Low Touch;
@@ -179,7 +185,7 @@ The pipeline regenerates data, scores, summaries, figures, and `reports/metrics.
 CI requires byte-identical synthetic data and compares machine-readable model outputs
 with a strict numerical tolerance for cross-platform floating-point differences. PNG
 files may differ at the binary level across rendering environments. The committed data
-fingerprint is `b24f3c2d959f40ea`.
+fingerprint is `7feb745524f4f82b`.
 
 ## Repository map
 
@@ -203,8 +209,10 @@ fingerprint is `b24f3c2d959f40ea`.
   because margin, treatment cost, and marketing exposure are unavailable.
 - On the public holdout, the model has worse point error than the fixed baseline despite
   better ranking; neither result establishes transferability to another retailer.
+- The public point predictions sum to 64.5% of realized signed net revenue, so ranking
+  evidence should not be mistaken for calibrated portfolio-level forecasts.
 - Public revenue is heavy-tailed, and the highest predicted-value decile reaches only
-  75.9% interval coverage despite 87.8% marginal coverage.
+  65.8% interval coverage despite 80.1% marginal coverage.
 - Customers are re-observed across snapshots, matching a recurring scoring setup; evaluation is out-of-time rather than customer-disjoint.
 - Split-conformal calibration improves marginal coverage but does not guarantee 80% coverage within every value decile or service tier.
 - Calibration validity depends on temporal exchangeability and must be monitored after distribution shift.

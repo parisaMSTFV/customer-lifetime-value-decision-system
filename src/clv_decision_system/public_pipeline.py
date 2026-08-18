@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.metrics import average_precision_score, brier_score_loss
 
 from .config import load_public_validation_config
-from .evaluation import regression_metrics
+from .evaluation import paired_bootstrap_comparison, regression_metrics
 from .pipeline import _split_snapshots
 from .public_features import PUBLIC_TARGET_COLUMN, public_snapshot_fingerprint
 from .public_modeling import (
@@ -124,6 +124,13 @@ def run_public_validation(
         brier_score_loss(test["future_active_180d"], predictions["active_probability_180d"])
     )
     baseline_metrics = regression_metrics(actual, baseline)
+    bootstrap = paired_bootstrap_comparison(
+        actual,
+        predictions["predicted_revenue_180d"].to_numpy(),
+        baseline,
+        iterations=int(config["bootstrap_iterations"]),
+        seed=int(config["seed"]),
+    )
     scored = pd.concat(
         [
             test[["customer_id", "snapshot_date", PUBLIC_TARGET_COLUMN]].copy(),
@@ -141,6 +148,20 @@ def run_public_validation(
     interval_by_decile = _interval_by_decile(scored)
     importance = public_permutation_importance(bundle, test, config["seed"])
     quality = json.loads(quality_path.read_text(encoding="utf-8"))
+    observed_start = pd.Timestamp(quality["date_min"]).normalize()
+    available_history_days = {
+        snapshot_date: int((pd.Timestamp(snapshot_date) - observed_start).days)
+        for snapshot_date in config["snapshot_dates"]
+    }
+    actual_total = float(actual.sum())
+    predicted_total = float(predictions["predicted_revenue_180d"].sum())
+    model_metrics["aggregate_prediction_to_actual_ratio"] = (
+        predicted_total / actual_total if actual_total else 0.0
+    )
+    model_metrics["negative_prediction_rate"] = float(
+        (predictions["predicted_revenue_180d"] < 0).mean()
+    )
+    model_metrics["negative_realized_value_rate"] = float((actual < 0).mean())
     metrics: dict[str, Any] = {
         "data": {
             "dataset": "UCI Online Retail II",
@@ -161,6 +182,14 @@ def run_public_validation(
             ),
             "snapshot_rows": int(len(snapshots)),
             "snapshot_fingerprint": public_snapshot_fingerprint(snapshots),
+            "lookback_coverage": {
+                "required_days": int(config["lookback_days"]),
+                "minimum_available_days": min(available_history_days.values()),
+                "all_snapshots_complete": all(
+                    days >= int(config["lookback_days"]) for days in available_history_days.values()
+                ),
+                "available_days_by_snapshot": available_history_days,
+            },
         },
         "split": {
             "train_rows": int(len(train)),
@@ -176,6 +205,11 @@ def run_public_validation(
             "candidates": candidates,
         },
         "holdout": {"model": model_metrics, "baseline": baseline_metrics},
+        "bootstrap_comparison": {
+            "iterations": int(config["bootstrap_iterations"]),
+            "method": "paired customer-level resampling with replacement",
+            "metrics": bootstrap,
+        },
         "interval_calibration": asdict(interval),
         "conditional_interval": {
             "highest_value_decile_coverage": float(
@@ -199,7 +233,7 @@ def run_public_validation(
         },
         "publication_guardrail": {
             "row_level_customer_output_committed": False,
-            "target": "180-day net revenue",
+            "target": "signed 180-day net revenue",
             "not_available": ["contribution margin", "treatment cost", "causal uplift"],
         },
     }

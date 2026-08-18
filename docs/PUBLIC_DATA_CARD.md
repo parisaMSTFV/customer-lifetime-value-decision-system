@@ -19,7 +19,9 @@ This dataset provides an out-of-simulation check of temporal feature constructio
 customer-value ranking, interval calibration, and fixed-capacity value capture. It does
 not replace the synthetic case study's contribution-margin decision policy.
 
-The public target is **180-day net revenue**, floored at zero per customer and horizon.
+The public target is **signed 180-day net revenue** per customer and horizon. Returns and
+cancellations can make the target negative; any value-bearing transaction counts as
+future activity, so no activity implies a zero target.
 The source does not contain cost of goods, fulfillment cost, marketing cost, or
 contribution margin. Public results must therefore not be described as profit, causal
 incrementality, or complete lifetime value.
@@ -50,6 +52,8 @@ canonicalization.
 - An invoice beginning with `C` or a negative quantity is treated as a cancellation.
 - Cancellation value is retained as negative signed revenue instead of being silently
   discarded.
+- Each configured snapshot must have the full 365 days of observable source history;
+  the builder fails closed when this condition is not met.
 - Raw and canonical row-level files remain under ignored `data/external/` paths. Only
   aggregate reports are eligible for publication.
 

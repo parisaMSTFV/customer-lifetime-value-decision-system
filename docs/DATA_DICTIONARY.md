@@ -21,7 +21,7 @@ All records are synthetic. Customer IDs and order IDs are generated sequence key
 | `category` | category | Generic merchandise category |
 | `order_channel` | category | App, web, or assisted channel |
 | `net_revenue` | float | Revenue after the synthetic discount |
-| `contribution_margin` | float | Revenue less synthetic product, fulfillment, and return costs |
+| `contribution_margin` | float | Revenue less synthetic product, fulfillment, and return costs; may be negative |
 | `discount_ratio` | float | Share of gross revenue discounted |
 | `returned` | integer | Synthetic return indicator |
 
@@ -59,14 +59,14 @@ All records are synthetic. Customer IDs and order IDs are generated sequence key
 |---|---|
 | `future_orders_180d` | Order count after the snapshot through day 180 |
 | `future_discounted_margin_180d` | Discounted contribution margin in that horizon |
-| `future_active_180d` | Indicator for positive future discounted margin |
+| `future_active_180d` | Indicator for at least one future order, independent of margin sign |
 
 ## `artifacts/holdout_customer_scores.csv`
 
 | Column | Definition |
 |---|---|
 | `predicted_clv_180d` | Expected 180-day discounted contribution margin |
-| `active_probability_180d` | Estimated probability of activity in the horizon |
+| `active_probability_180d` | Estimated probability of at least one value-bearing transaction in the horizon |
 | `clv_lower_80_raw`, `clv_upper_80_raw` | Uncalibrated 10th/90th quantile interval |
 | `clv_lower_80`, `clv_upper_80` | Split-conformal interval used by the active policy |
 | `service_tier` | Relative capacity tier |

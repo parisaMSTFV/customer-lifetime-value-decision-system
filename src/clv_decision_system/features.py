@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 TARGET_COLUMN = "future_discounted_margin_180d"
@@ -58,7 +59,7 @@ def build_customer_snapshots(
                 on=["customer_id", "snapshot_date"],
                 validate="one_to_one",
             )
-            snapshot["future_active_180d"] = (snapshot[TARGET_COLUMN] > 0).astype(int)
+            snapshot["future_active_180d"] = (snapshot["future_orders_180d"] > 0).astype(int)
             snapshots.append(snapshot)
     finally:
         connection.close()
@@ -78,5 +79,6 @@ def validate_snapshots(frame: pd.DataFrame, expected_dates: list[str]) -> None:
     observed_dates = sorted(frame["snapshot_date"].astype(str).unique().tolist())
     if observed_dates != sorted(expected_dates):
         raise ValueError(f"Snapshot dates differ from configuration: {observed_dates}")
-    if (frame[TARGET_COLUMN] < 0).any():
-        raise ValueError("Synthetic discounted margin must be non-negative")
+    numeric = frame.select_dtypes(include="number")
+    if not np.isfinite(numeric.to_numpy()).all():
+        raise ValueError("Synthetic snapshot values must be finite")

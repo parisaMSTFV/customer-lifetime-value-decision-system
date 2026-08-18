@@ -6,13 +6,14 @@ import hashlib
 from pathlib import Path
 
 import duckdb
+import numpy as np
 import pandas as pd
 
 PUBLIC_TARGET_COLUMN = "future_net_revenue_180d"
 PUBLIC_ACTIVE_COLUMN = "future_active_180d"
 PUBLIC_CATEGORICAL_FEATURES = ["country"]
 PUBLIC_NUMERIC_FEATURES = [
-    "tenure_days",
+    "observed_tenure_days",
     "recency_days",
     "orders_30d",
     "orders_90d",
@@ -67,10 +68,11 @@ def validate_public_snapshots(frame: pd.DataFrame, expected_dates: list[str]) ->
     observed = sorted(pd.to_datetime(frame["snapshot_date"]).dt.strftime("%Y-%m-%d").unique())
     if observed != sorted(expected_dates):
         raise ValueError(f"Public snapshot dates differ from configuration: {observed}")
-    if (frame[PUBLIC_TARGET_COLUMN] < 0).any():
-        raise ValueError("Future public net revenue must be non-negative")
     if not frame[PUBLIC_ACTIVE_COLUMN].isin([0, 1]).all():
         raise ValueError("Future public activity must be binary")
+    numeric = frame.select_dtypes(include="number")
+    if not np.isfinite(numeric.to_numpy()).all():
+        raise ValueError("Public snapshot values must be finite")
 
 
 def build_public_customer_snapshots(
@@ -81,6 +83,20 @@ def build_public_customer_snapshots(
     sql_directory: str | Path,
 ) -> pd.DataFrame:
     """Execute the public transaction contract, feature SQL, and future-label SQL."""
+    if transactions.empty:
+        raise ValueError("Public transactions must not be empty")
+    observed_start = pd.to_datetime(transactions["invoice_date"]).min()
+    incomplete = {
+        snapshot_date: int((pd.Timestamp(snapshot_date) - observed_start.normalize()).days)
+        for snapshot_date in snapshot_dates
+        if pd.Timestamp(snapshot_date) - observed_start < pd.Timedelta(days=lookback_days)
+    }
+    if incomplete:
+        raise ValueError(
+            "Public snapshots do not have a complete lookback window: "
+            f"{incomplete}; required={lookback_days}"
+        )
+
     sql_path = Path(sql_directory)
     contract_sql = (sql_path / "public_transaction_contract.sql").read_text(encoding="utf-8")
     feature_sql = _sql(sql_path / "public_customer_features.sql")
@@ -171,7 +187,7 @@ def build_public_customer_snapshots_pandas(
                     (history_frame["age_days"] > start_exclusive)
                     & (history_frame["age_days"] <= end_inclusive)
                 ]
-                return max(float(window["signed_revenue"].sum()), 0.0)
+                return float(window["signed_revenue"].sum())
 
             revenue_90 = net_revenue(-1, 90)
             previous_90 = net_revenue(90, 180)
@@ -185,8 +201,9 @@ def build_public_customer_snapshots_pandas(
                 history_365.loc[history_365["is_cancellation"], "signed_revenue"].sum()
             )
             customer_future = future[future["customer_id"] == customer_id]
-            future_value = max(float(customer_future["signed_revenue"].sum()), 0.0)
-            tenure_days = int(
+            future_value = float(customer_future["signed_revenue"].sum())
+            future_activity = not customer_future.empty
+            observed_tenure_days = int(
                 (snapshot.normalize() - first_purchase.loc[customer_id].normalize()).days
             )
             recency_days = (
@@ -197,7 +214,7 @@ def build_public_customer_snapshots_pandas(
                     "customer_id": customer_id,
                     "snapshot_date": snapshot_text,
                     "country": latest_country.loc[customer_id],
-                    "tenure_days": tenure_days,
+                    "observed_tenure_days": observed_tenure_days,
                     "recency_days": recency_days,
                     "orders_30d": orders(30),
                     "orders_90d": orders(90),
@@ -215,10 +232,11 @@ def build_public_customer_snapshots_pandas(
                     "active_months_365d": int(
                         positive_365["invoice_date"].dt.to_period("M").nunique()
                     ),
-                    "revenue_momentum_90d": (revenue_90 + 1.0) / (previous_90 + 1.0),
+                    "revenue_momentum_90d": (revenue_90 - previous_90)
+                    / (abs(revenue_90) + abs(previous_90) + 1.0),
                     "recent_order_share": orders(90) / order_count_365 if order_count_365 else 0.0,
                     PUBLIC_TARGET_COLUMN: future_value,
-                    PUBLIC_ACTIVE_COLUMN: int(future_value > 0),
+                    PUBLIC_ACTIVE_COLUMN: int(future_activity),
                 }
             )
         snapshots.append(pd.DataFrame(rows))

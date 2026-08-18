@@ -19,14 +19,17 @@ Shares and caps are configuration, not discovered truths. They live in `configs/
 
 ## Tier assignment
 
-Customers are sorted by `predicted_clv_180d`. The top 10% enter Protect, the next 20% Grow, the next 40% Nurture, and the remainder Low Touch. Assignment uses no realized holdout value.
+Customers are sorted by `predicted_clv_180d`. Integer capacities are derived from all
+four configured shares with a deterministic largest-remainder allocation, so every row
+is assigned and the Low Touch share is enforced rather than inferred. Assignment uses no
+realized holdout value.
 
 ## Investment ceiling
 
 The default ceiling is:
 
 \[
-Ceiling_i = \min(0.08 \times LowerBound_i, TierCap_i)
+Ceiling_i = \max(0, \min(0.08 \times LowerBound_i, TierCap_i))
 \]
 
 Using the split-conformal lower interval bound makes the rule conservative, but the 8% fraction and tier caps are still scenario assumptions. The ceiling is a planning guardrail, not expected incremental profit. The raw quantile lower bound is retained in the scored artifact for audit but is not used by the active policy.
@@ -37,9 +40,9 @@ Using the split-conformal lower interval bound makes the rule conservative, but 
 
 ## Holdout evidence
 
-The Protect tier contains 10% of customers and 24.2% of realized 180-day contribution margin on the untouched synthetic holdout. This checks whether the ranking concentrates value. It does not estimate treatment response.
+The Protect tier contains 10% of customers and 24.7% of realized 180-day contribution margin on the untouched synthetic holdout. This checks whether the ranking concentrates value. It does not estimate treatment response.
 
-Calibration increased the high-uncertainty rate from 67.3% to 70.1% and reduced the aggregate investment ceiling from 4,220.8 to 3,905.9 synthetic currency units. Protect-tier interval coverage is 74.3%, below the marginal 80% target, so high-value cases retain an explicit review requirement.
+Calibration increased the high-uncertainty rate from 65.5% to 70.2% and reduced the aggregate investment ceiling from 3,712.1 to 3,372.3 synthetic currency units. Protect-tier interval coverage is 80.0%; conditional coverage elsewhere remains uneven, so high-value cases retain an explicit review requirement.
 
 ## Production controls
 

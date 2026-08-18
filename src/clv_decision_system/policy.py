@@ -10,33 +10,37 @@ import pandas as pd
 TIER_ORDER = ["protect", "grow", "nurture", "low_touch"]
 
 
+def _tier_counts(population: int, shares: dict[str, float]) -> dict[str, int]:
+    """Allocate every row using largest remainders across all configured shares."""
+    exact = {tier: population * float(shares[tier]) for tier in TIER_ORDER}
+    counts = {tier: int(np.floor(exact[tier])) for tier in TIER_ORDER}
+    remainder = population - sum(counts.values())
+    priority = sorted(
+        TIER_ORDER,
+        key=lambda tier: (-(exact[tier] - counts[tier]), TIER_ORDER.index(tier)),
+    )
+    for tier in priority[:remainder]:
+        counts[tier] += 1
+    return counts
+
+
 def apply_policy(
     predictions: pd.DataFrame,
     policy_config: dict[str, Any],
 ) -> pd.DataFrame:
     """Assign relative tiers and conservative investment ceilings."""
     result = predictions.copy()
-    descending_rank = result["predicted_clv_180d"].rank(
-        method="first",
-        ascending=False,
-    )
-    protect_share = float(policy_config["tier_shares"]["protect"])
-    grow_share = float(policy_config["tier_shares"]["grow"])
-    nurture_share = float(policy_config["tier_shares"]["nurture"])
     population = len(result)
-    protect_count = round(population * protect_share)
-    grow_count = round(population * grow_share)
-    nurture_count = round(population * nurture_share)
-
-    result["service_tier"] = np.select(
-        [
-            descending_rank <= protect_count,
-            descending_rank <= protect_count + grow_count,
-            descending_rank <= protect_count + grow_count + nurture_count,
-        ],
-        ["protect", "grow", "nurture"],
-        default="low_touch",
-    )
+    if population == 0:
+        raise ValueError("Policy requires at least one prediction")
+    if not np.isfinite(result["predicted_clv_180d"].to_numpy()).all():
+        raise ValueError("Policy predictions must be finite")
+    counts = _tier_counts(population, policy_config["tier_shares"])
+    ordered_index = result.sort_values(["predicted_clv_180d"], ascending=False, kind="stable").index
+    assignments: list[str] = []
+    for tier in TIER_ORDER:
+        assignments.extend([tier] * counts[tier])
+    result.loc[ordered_index, "service_tier"] = assignments
     uncertainty_ratio = (result["clv_upper_80"] - result["clv_lower_80"]) / result[
         "predicted_clv_180d"
     ].clip(lower=1.0)

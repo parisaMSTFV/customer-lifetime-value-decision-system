@@ -109,11 +109,10 @@ def _fit_point_models(
     classifier.fit(transformed_features, active)
 
     active_mask = active.to_numpy(dtype=bool)
+    if active_mask.sum() < 2:
+        raise ValueError("Development data has too few purchasing outcomes")
     conditional_regressor = HistGradientBoostingRegressor(loss="squared_error", **common)
-    conditional_regressor.fit(
-        transformed_features[active_mask],
-        np.log1p(target.to_numpy()[active_mask]),
-    )
+    conditional_regressor.fit(transformed_features[active_mask], target.to_numpy()[active_mask])
     return classifier, conditional_regressor
 
 
@@ -123,8 +122,8 @@ def _point_prediction(
     transformed_features: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     active_probability = classifier.predict_proba(transformed_features)[:, 1]
-    conditional_margin = np.expm1(conditional_regressor.predict(transformed_features))
-    prediction = np.clip(active_probability * conditional_margin, 0.0, None)
+    conditional_margin = conditional_regressor.predict(transformed_features)
+    prediction = active_probability * conditional_margin
     return prediction, active_probability
 
 
@@ -210,12 +209,12 @@ def predict(
         bundle.conditional_regressor,
         transformed,
     )
-    raw_lower = np.clip(bundle.lower_regressor.predict(transformed), 0.0, None)
-    raw_upper = np.clip(bundle.upper_regressor.predict(transformed), 0.0, None)
+    raw_lower = bundle.lower_regressor.predict(transformed)
+    raw_upper = bundle.upper_regressor.predict(transformed)
     raw_lower = np.minimum(raw_lower, point)
     raw_upper = np.maximum(raw_upper, point)
     correction = 0.0 if interval_calibration is None else interval_calibration.correction
-    lower = np.minimum(np.clip(raw_lower - correction, 0.0, None), point)
+    lower = np.minimum(raw_lower - correction, point)
     upper = np.maximum(raw_upper + correction, point)
     return pd.DataFrame(
         {
@@ -252,7 +251,7 @@ def calibrate_intervals(
         0.0,
         float(np.quantile(conformity_scores, finite_sample_quantile, method="higher")),
     )
-    calibrated_lower = np.clip(raw_lower - correction, 0.0, None)
+    calibrated_lower = raw_lower - correction
     calibrated_upper = raw_upper + correction
     return IntervalCalibration(
         target_coverage=target_coverage,
@@ -268,9 +267,11 @@ def calibrate_intervals(
 def baseline_prediction(frame: pd.DataFrame) -> np.ndarray:
     """Transparent recency-adjusted trailing-margin baseline."""
     recency_weight = np.exp(-frame["recency_days"].to_numpy() / 220.0)
-    momentum = np.clip(
-        (frame["margin_90d"].to_numpy() + 10.0) / (frame["margin_previous_90d"].to_numpy() + 10.0),
-        0.55,
-        1.45,
+    recent = frame["margin_90d"].to_numpy()
+    previous = frame["margin_previous_90d"].to_numpy()
+    normalized_change = np.clip(
+        (recent - previous) / (np.abs(recent) + np.abs(previous) + 10.0),
+        -0.45,
+        0.45,
     )
-    return np.clip(frame["margin_180d"].to_numpy() * recency_weight * momentum, 0.0, None)
+    return frame["margin_180d"].to_numpy() * recency_weight * (1.0 + normalized_change)
